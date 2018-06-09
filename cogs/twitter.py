@@ -43,8 +43,8 @@ class Twitter:
 	def latest_tweets(self, twitter_id, count=1):
 		return self.twitter.user_timeline(id=twitter_id, count=count, include_rts=False)
 
-	def live_tweet(msg):
-		status = api.update_status(msg)
+	def live_tweet(self, msg):
+		status = self.twitter.update_status(msg)
 		link = 'https://twitter.com/statuses/{}'.format(status.id)
 		return link
 
@@ -62,7 +62,7 @@ class Twitter:
 		print('Starting Twitter Stream ...')
 		while not self.bot.is_closed and self.stream.running:
 			while self.buffer:
-				await self.bot.send_message(self.channel_twitter, self.buffer.pop())
+				await self.bot.send_message(self.channel_twitter, self.buffer.pop(0))
 			await asyncio.sleep(1)
 		print('END superstar_tweet_task')
 
@@ -90,10 +90,9 @@ class Twitter:
 	@checks.is_owner()
 	async def send_tweet(self, ctx, message):
 		await self.bot.say('Send Tweet? [Y/N]```{}```'.format(message))
-		confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=confirm_check)
+		confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
 		if confirm and confirm.content.upper()=='Y':
-			status = self.twitter.update_status(msg)
-			tweet_link = 'https://twitter.com/statuses/{}'.format(status.id)
+			tweet_link = self.live_tweet(message)
 			await self.bot.say(tweet_link)
 		else:
 			await self.bot.say('Tweet cancelled.')

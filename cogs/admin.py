@@ -9,34 +9,6 @@ class Admin:
 	def __init__(self, bot):
 		self.bot = bot
 		
-	@commands.command(name='load', hidden=True)
-	@checks.is_owner()
-	async def cog_load(self, cog:str):
-		try:
-			self.bot.load_extension(cog)
-			await self.bot.say('```{} loaded```'.format(cog))
-		except (AttributeError, ImportError) as e:
-			await self.bot.say('```py\n{}: {}\n```'.format(type(e).__name__, str(e)))
-
-	@commands.command(name='unload', hidden=True)
-	@checks.is_owner()
-	async def cog_unload(self, cog:str):
-		try:
-			self.bot.unload_extension(cog)
-			await self.bot.say('```{} unloaded```'.format(cog))
-		except (AttributeError, ImportError) as e:
-			await self.bot.say('```py\n{}: {}\n```'.format(type(e).__name__, str(e)))
-
-	@commands.command(name='reload', hidden=True)
-	@checks.is_owner()
-	async def cog_reload(self, cog:str):
-		try:
-			self.bot.unload_extension(cog)
-			self.bot.load_extension(cog)
-			await self.bot.say('```{} reloaded```'.format(cog))
-		except (AttributeError, ImportError) as e:
-			await self.bot.say('```py\n{}: {}\n```'.format(type(e).__name__, str(e)))
-
 	@commands.command(name='kick', pass_context=True, hidden=True)
 	@checks.is_owner()
 	async def kick_member(self, ctx, member:discord.Member, reason:str=None):

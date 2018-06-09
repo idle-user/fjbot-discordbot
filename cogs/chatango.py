@@ -1,5 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from threading import Thread
+from time import sleep
 import asyncio
+import sys
 
 import discord
 from discord.ext import commands
@@ -7,6 +11,8 @@ from discord.ext import commands
 from lib import ch
 from utils import checks, credentials
 
+
+chbot = None
 class Chatango:
 
 	def __init__(self, bot):
@@ -15,25 +21,32 @@ class Chatango:
 		self.bot.loop.create_task(self.chatango_bot_task())
 		self.bot.loop.create_task(self.chatango_log_task())
 
+	def __unload(self):
+		global chbot
+		chbot.stop()
+
 	class ChBot(ch.RoomManager):
-		def onInit(self, myapi):
-			self.myapi = myapi
-			self.chbot = self
+		def onInit(self):
+			global chbot
+			chbot = self
+			self.buffer = []
+			self.users = []
 			self.setNameColor('000099')
 			self.setFontColor('000099')
 			self.setFontFace('Arial')
 			self.setFontSize(14)
 			print('[{}] Chatango {}: START'.format(datetime.now(), self.name))
 		def onMessage(self, room, user, message):
-			global users, messages, last_message
-			users.add(user.name)
+			self.users.append(user.name)
 			msg = '[{}] @{}: {}'.format(room.name, user.name, message.body)
-			messages.append(msg)
+			self.buffer.append(msg)
+			print(self.buffer)
 			if user.name==self.name.lower():
 				return
 			args = message.body.lower().split(' ')
 			if  not args[0].startswith('!') or user.name.startswith('#'):
 				return
+			print(self.myapi)
 			if not self.verify(user.name) and not 'register' in args[0]:
 				msg = 'You must first register to use commands. Please use command `!register`.'
 				self.sendUserMessage(user.name, msg)
@@ -83,7 +96,7 @@ class Chatango:
 			if cmd == '!register':
 				res = self.register(username)
 			elif cmd == '!help':
-				res = '!resetpw - Get a temporary password for the website | !rate - Rate the current match | !rumble - Get an entry numbe$
+				res = '!resetpw - Get a temporary password for the website | !rate - Rate the current match | !rumble - Get an entry number the Royal Rumble | !commands - get a list of other commands'
 			elif cmd == '!resetpw':
 				res = self.reset_pw(username)
 			elif cmd == '!rate':
@@ -105,6 +118,8 @@ class Chatango:
 			if res:
 				self.sendUserMessage(username, res)
 		def verify(self, username):
+			print(self.myapi)
+			print(self.myapi.dbhandler)
 			data = self.myapi.dbhandler.chatango_username_info(username)
 			return data
 		def register(self, username):
@@ -119,7 +134,7 @@ class Chatango:
 		def reset_pw(self, username):
 			user_id = self.verify(username)['user_id']
 			temp = self.myapi.dbhandler.user_temp_password(user_id)
-			return 'Visit https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=wwe to set a new password. Link will expire$
+			return 'Visit https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=wwe to set a new password. Link will expire in 30 minutes.'.format(temp, user_id, username)
 		def rate_match(self, username, rating=0):
 			if not current_match:
 				return 'No Current Match set for Rating.'
@@ -136,7 +151,7 @@ class Chatango:
 				print('Exception:rate_match:',e, username, current_match['id'], rating)
 		def royalrumble_entry(self, username, args=[]):
 			if not args or args[0] != 'now':
-				return 'Login and visit the Event section on https://fancyjesse.com/projects/wwe to join the Rumble! If you have not set a$
+				return 'Login and visit the Event section on https://fancyjesse.com/projects/wwe to join the Rumble! If you have not set a password, use !resetpw. Or skip everything and just get an entry nuumber using command "!rumble now"'
 			user_id = self.verify(username)['user_id']
 			res = self.myapi.dbhandler.royalrumble_check(user_id)
 			if res:
@@ -148,23 +163,34 @@ class Chatango:
 				res = 'Unable to join the Royal Rumble. Probably not open yet or you have already entered.'
 			return res
 
-	def start_bot(self):
-		self.ChBot.easy_start(credentials.chatango['rooms'], credentials.chatango['username'], credentials.chatango['secret'])
-		print('END ChBot')
+	def start_chbot(self):
+		self.ChBot.easy_start(credentials.chatango['rooms'], credentials.chatango['username'], credentials.chatango['secret'])		
 
 	async def chatango_bot_task(self):
 		await self.bot.wait_until_ready()
-		self.bot.loop.create_task(start_bot(self))
+		executor = ThreadPoolExecutor()
+		t_stream = Thread(target=self.start_chbot)
+		await self.bot.loop.run_in_executor(executor, t_stream.start)
+		await self.bot.loop.run_in_executor(executor, t_stream.join)
 		print('END chatango_bot_task')
 	
+	async def wait_until_chbot_running(self, limit=30):
+		while limit > 0:
+			try:
+				return chbot._running == True
+			except:
+				pass
+			await asyncio.sleep(1)
+			limit = limit - 1
+
 	async def chatango_log_task(self):
+		global chbot
 		await self.bot.wait_until_ready()
-		bot.loop.create_task(chatango.message_stream(bot.loop))
-		await asyncio.sleep(5)
-		while not bot.is_closed and self.chbot._running:
-			while self.buffer:
-				print(self.buffer.pop())
-				#await self.bot.send_message(self.channel_chatango, '```{}```'.format(self.buffer.pop()))
+		await self.wait_until_chbot_running()
+		chbot.myapi = self.bot
+		while not self.bot.is_closed and chbot._running:
+			while chbot.buffer:
+				await self.bot.send_message(self.channel_chatango, '```{}```'.format(chbot.buffer.pop(0)))
 			await asyncio.sleep(1)
 		print('END chatango_log_task')
 
@@ -174,11 +200,11 @@ class Chatango:
 		if message == '!ad':
 			message = discord_ad
 		await self.bot.say('Send message to Chatango? [Y/N]```{}```'.format(message))
-		confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=confirm_check)
+		confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
 		if confirm and confirm.content.upper()=='Y':
 			ch_rooms = []
 			for ch_room in credentials.chatango['rooms']:
-				if chatango.bot.sendRoomMessage(ch_room, message):
+				if chbot.sendRoomMessage(ch_room, message):
 					ch_rooms.append(ch_room)
 			await self.bot.say('{}, Discord message sent to Chatango [{}].'.format(ctx.message.author.mention, ','.join(ch_rooms)))
 		else:
@@ -187,7 +213,7 @@ class Chatango:
 	@commands.command(name='chusers', pass_context=True)
 	@checks.is_owner()
 	async def display_users(ctx):
-		await self.bot.say('Chatango User List ({})\n {}'.format(len(chatango.users), chatango.users))			
+		await self.bot.say('Chatango User List ({})\n {}'.format(len(chbot.users), chbot.users))
 
 def setup(bot):
 	bot.add_cog(Chatango(bot))

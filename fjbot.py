@@ -3,7 +3,7 @@ from datetime import datetime
 import sys, traceback
 import asyncio
 
-from discord.ext import commands
+#from discord.ext import commands
 import discord
 
 from utils.dbhandler import DBHandler
@@ -11,23 +11,19 @@ from utils import credentials, checks
 
 
 startup_extensions = [
-	'cogs.admin'
-	,'cogs.member'
-	,'cogs.wwe'
-	,'cogs.twitter'
-	,'cogs.chatango'
+	'cogs.admin',
+	'cogs.member',
+	'cogs.wwe',
+	'cogs.twitter',
+	'cogs.chatango',
 ]
 description='FJBot is a Discord Bot written in Python by FancyJesse'
-bot = commands.Bot(command_prefix='!', description=description)
+bot = discord.ext.commands.Bot(command_prefix='!', description=description)
 
 channel_debug = discord.Object(id=credentials.discord['channel']['debug'])
 
 current_match = {}
 
-def confirm_check(m):
-	return m.content.upper() in ['Y','N']
-
-# bot events
 @bot.event
 async def on_command_error(error, ctx):
 	if 'is not found' in str(error):
@@ -63,6 +59,35 @@ async def on_message(message):
 async def on_ready():
 	bot.start_dt = datetime.now()
 	print('[{}] Discord: Logged in as {}({})'.format(bot.start_dt, bot.user.name, bot.user.id))
+
+
+@bot.command(name='load', hidden=True)
+@checks.is_owner()
+async def cog_load(cog:str):
+	try:
+		bot.load_extension(cog)
+		await bot.say('```{} loaded```'.format(cog))
+	except (AttributeError, ImportError) as e:
+		await bot.say('```py\n{}: {}\n```'.format(type(e).__name__, str(e)))
+
+@bot.command(name='unload', hidden=True)
+@checks.is_owner()
+async def cog_unload(cog:str):
+	try:
+		bot.unload_extension(cog)
+		await bot.say('```{} unloaded```'.format(cog))
+	except (AttributeError, ImportError) as e:
+		await bot.say('```py\n{}: {}\n```'.format(type(e).__name__, str(e)))
+
+@bot.command(name='reload', hidden=True)
+@checks.is_owner()
+async def cog_reload(cog:str):
+	try:
+		bot.unload_extension(cog)
+		bot.load_extension(cog)
+		await bot.say('```{} reloaded```'.format(cog))
+	except (AttributeError, ImportError) as e:
+		await bot.say('```py\n{}: {}\n```'.format(type(e).__name__, str(e)))
 		
 if __name__ == '__main__':
 	try:

@@ -53,7 +53,7 @@ class WWE:
 		
 		if m:
 			await self.bot.say('Start Rating on [{} | {}]? [Y/N]'.format(m['match_type'], m['superstars']))
-			confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=confirm_check)
+			confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
 			if not confirm:
 				await self.bot.say('You took too long to confirm. Try again, {}.'.format(ctx.message.author.mention))
 			else:
@@ -323,7 +323,7 @@ class WWE:
 				await self.bot.say('{}, you already have a {:,} bet placed on {}.'.format(ctx.message.author.mention, ub['points'], tm))
 				return
 			await self.bot.say('{}, are you sure you want to bet **{:,} points** on **{}**? [Y/N]'.format(ctx.message.author.mention, bet, tm))
-			confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=confirm_check)
+			confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
 			if not confirm:
 				await self.bot.say('You took too long to confirm. Try again, {}.'.format(ctx.message.author.mention))
 			else:
