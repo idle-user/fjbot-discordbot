@@ -136,7 +136,7 @@ class Chatango:
 			temp = self.myapi.dbhandler.user_temp_password(user_id)
 			return 'Visit https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=wwe to set a new password. Link will expire in 30 minutes.'.format(temp, user_id, username)
 		def rate_match(self, username, rating=0):
-			if not current_match:
+			if not self.myapi.current_match:
 				return 'No Current Match set for Rating.'
 			try:
 				rating = float(rating)
@@ -145,10 +145,10 @@ class Chatango:
 			if rating<1 or rating>5:
 				return 'Not a valid star rating. (1-5)'
 			try:
-				if self.myapi.dbhandler.user_rate(self.verify(username)['user_id'], current_match['id'], rating):
+				if self.myapi.dbhandler.user_rate(self.verify(username)['user_id'], self.myapi.current_match['id'], rating):
 					return '{} Star Match rating received.'.format(rating)
 			except Exception as e:
-				print('Exception:rate_match:',e, username, current_match['id'], rating)
+				print('Exception:rate_match:',e, username, self.myapi.current_match['id'], rating)
 		def royalrumble_entry(self, username, args=[]):
 			if not args or args[0] != 'now':
 				return 'Login and visit the Event section on https://fancyjesse.com/projects/wwe to join the Rumble! If you have not set a password, use !resetpw. Or skip everything and just get an entry nuumber using command "!rumble now"'

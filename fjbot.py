@@ -20,10 +20,6 @@ startup_extensions = [
 description='FJBot is a Discord Bot written in Python by FancyJesse'
 bot = discord.ext.commands.Bot(command_prefix='!', description=description)
 
-channel_debug = discord.Object(id=credentials.discord['channel']['debug'])
-
-current_match = {}
-
 @bot.event
 async def on_command_error(error, ctx):
 	if 'is not found' in str(error):

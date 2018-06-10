@@ -4,6 +4,7 @@ import datetime
 from discord.ext import commands
 import discord
 
+from cogs import chatango
 from utils import checks, credentials
 
 
@@ -11,7 +12,7 @@ class WWE:
 
 	def __init__(self, bot):
 		self.bot = bot
-		self.current_match = None
+		self.bot.current_match = None
 		self.channel_general = discord.Object(id=credentials.discord['channel']['general'])
 		self.channel_ppv = discord.Object(id=credentials.discord['channel']['ppv'])
 		self.channel_raw = discord.Object(id=credentials.discord['channel']['raw'])
@@ -59,12 +60,11 @@ class WWE:
 			else:
 				confirm.content = confirm.content.upper()
 				if confirm.content=='Y':
-					self.current_match = m
-					chatango.current_match = m
+					self.bot.current_match = m
 					msg = 'Match Rating has begun! Use command `!rate [number]` to give the match a 1-5 star rating. [{} | {}]'.format(m['match_type'], m['superstars'])
 					await self.bot.say(msg)
 					for ch_room in credentials.chatango['rooms']:
-						chatango.bot.sendRoomMessage(ch_room, msg)
+						chatango.chbot.sendRoomMessage(ch_room, msg)
 				else:
 					await self.bot.say('RateStart cancelled.')
 		else:
@@ -76,15 +76,14 @@ class WWE:
 		if user['access']<2:
 			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))	
 			return
-		if self.current_match:
-			match_id = self.current_match['id']
-			self.current_match = {}
-			chatango.current_match = {}
+		if self.bot.current_match:
+			match_id = self.bot.current_match['id']
+			self.bot.current_match = {}
 			m = self.bot.dbhandler.match(match_id)
 			msg = 'Match Rating has ended. Received a total of {} ({:.3f}). [{} | {}]'.format(''.join(['★' if m['rating']>=i else '☆' for i in range(1,6)]), m['rating'], m['match_type'], m['superstars'])
 			await self.bot.say(msg)
 			for ch_room in credentials.chatango['rooms']:
-				chatango.bot.sendRoomMessage(ch_room, msg)
+				chatango.chbot.sendRoomMessage(ch_room, msg)
 		else:
 			await self.bot.say('No current match set.')
 		
@@ -344,8 +343,8 @@ class WWE:
 		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
 		if user:
 			try:
-				if self.current_match:
-					match_id = self.current_match['id']
+				if self.bot.current_match:
+					match_id = self.bot.current_match['id']
 					rate = float(args[0])
 				else:
 					match_id = int(args[0])
