@@ -102,3 +102,19 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# eclipse
+.settings/
+.classpath
+.project
+
+# pydev
+.pydevproject
+
+# other
+*.sh
+*.save
+
+# ignore just incase
+utils/credentials.py
+__obsolete__/credentials.py
