@@ -40,13 +40,11 @@ class Chatango:
 			self.users.append(user.name)
 			msg = '[{}] @{}: {}'.format(room.name, user.name, message.body)
 			self.buffer.append(msg)
-			print(self.buffer)
 			if user.name==self.name.lower():
 				return
 			args = message.body.lower().split(' ')
 			if  not args[0].startswith('!') or user.name.startswith('#'):
 				return
-			print(self.myapi)
 			if not self.verify(user.name) and not 'register' in args[0]:
 				msg = 'You must first register to use commands. Please use command `!register`.'
 				self.sendUserMessage(user.name, msg)
@@ -118,16 +116,14 @@ class Chatango:
 			if res:
 				self.sendUserMessage(username, res)
 		def verify(self, username):
-			print(self.myapi)
-			print(self.myapi.dbhandler)
 			data = self.myapi.dbhandler.chatango_username_info(username)
 			return data
 		def register(self, username):
 			if self.verify(username):
-				return '@{}, you are already registered. Use !help to get a list of commands'.format(username)
+				return '@{}, you are already registered. Use `!help` to get a list of commands'.format(username)
 			data = self.myapi.dbhandler.chatango_register(username)
 			if data:
-				return '@{}, registration was successful! Use !help to get a list of commands.'.format(username)
+				return '@{}, registration was successful! Remember to set a password for your account by using `!resetpw`. For other commands, use `!help`.'.format(username)
 			else:
 				print('chatango.register: Failed to register:',username)
 				return False
@@ -191,6 +187,7 @@ class Chatango:
 		while not self.bot.is_closed and chbot._running:
 			while chbot.buffer:
 				await self.bot.send_message(self.channel_chatango, '```{}```'.format(chbot.buffer.pop(0)))
+				await asyncio.sleep(0.2)
 			await asyncio.sleep(1)
 		print('END chatango_log_task')
 

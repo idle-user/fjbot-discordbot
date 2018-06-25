@@ -63,6 +63,7 @@ class Twitter:
 		while not self.bot.is_closed and self.stream.running:
 			while self.buffer:
 				await self.bot.send_message(self.channel_twitter, self.buffer.pop(0))
+				await asyncio.sleep(0.2)
 			await asyncio.sleep(1)
 		print('END superstar_tweet_task')
 
