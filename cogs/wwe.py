@@ -5,6 +5,7 @@ from discord.ext import commands
 import discord
 
 from cogs import chatango
+from utils.dbhandler import DBHandler
 from utils import checks, credentials
 
 
@@ -12,6 +13,7 @@ class WWE:
 
 	def __init__(self, bot):
 		self.bot = bot
+		self.dbhandler = DBHandler()
 		self.bot.current_match = None
 		self.channel_general = discord.Object(id=credentials.discord['channel']['general'])
 		self.channel_ppv = discord.Object(id=credentials.discord['channel']['ppv'])
@@ -22,7 +24,7 @@ class WWE:
 	async def showtime_schedule_task(self):
 		await self.bot.wait_until_ready()
 		while not self.bot.is_closed:
-			event = self.bot.dbhandler.next_event()
+			event = self.dbhandler.next_event()
 			dt = datetime.datetime.now()
 			timer = (event['dt'] - dt).total_seconds()
 			print('showtime_schedule_task: sleep_until:{}, event:{}'.format(dt+datetime.timedelta(seconds=timer), event['name']))
@@ -40,7 +42,7 @@ class WWE:
 	@commands.command(name='ratestart', pass_context=True)
 	async def start_match_rating(self, ctx, match_id):
 		owner = ctx.message.server.get_member(credentials.discord['owner_id'])
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user['access']<2:
 			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))	
 			return
@@ -50,7 +52,7 @@ class WWE:
 			await self.bot.say('Invalid `!startrating` format.\n`!startrating [match_id]`')
 			return
 		
-		m = self.bot.dbhandler.match(match_id)
+		m = self.dbhandler.match(match_id)
 		
 		if m:
 			await self.bot.say('Start Rating on [{} | {}]? [Y/N]'.format(m['match_type'], m['superstars']))
@@ -72,14 +74,14 @@ class WWE:
 
 	@commands.command(name='rateend', pass_context=True)
 	async def end_match_rating(self, ctx):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user['access']<2:
 			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))	
 			return
 		if self.bot.current_match:
 			match_id = self.bot.current_match['id']
 			self.bot.current_match = {}
-			m = self.bot.dbhandler.match(match_id)
+			m = self.dbhandler.match(match_id)
 			msg = 'Match Rating has ended. Received a total of {} ({:.3f}). [{} | {}]'.format(''.join(['★' if m['rating']>=i else '☆' for i in range(1,6)]), m['rating'], m['match_type'], m['superstars'])
 			await self.bot.say(msg)
 			for ch_room in credentials.chatango['rooms']:
@@ -94,7 +96,7 @@ class WWE:
 
 	@commands.command(name='verify', pass_context=True)
 	async def verify_user_account(self, ctx):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user:
 			await self.bot.say('Your Discord is successfully linked to `{}` on http://wwe.fancyjesse.com'.format(user['username']))
 		else:
@@ -102,7 +104,7 @@ class WWE:
 
 	@commands.command(name='mypage', pass_context=True)
 	async def user_page(self, ctx):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user:
 			await self.bot.say("{}'s WWE Matches Page\nhttps://fancyjesse.com/projects/wwe/user?user_id={}".format(ctx.message.author.mention, user['id']))
 		else:
@@ -110,7 +112,7 @@ class WWE:
 			
 	@commands.command(name='ppv')
 	async def upcomming_ppv(self):
-		ppvs = self.bot.dbhandler.ppvs()
+		ppvs = self.dbhandler.ppvs()
 		await self.bot.say('```Upcoming PPVs\n-------------\n{}```'.format('\n'.join(['{} - {}'.format(e['date'],e['name']) for e in ppvs])))
 
 	@commands.command(name='bio')
@@ -120,7 +122,7 @@ class WWE:
 		except:
 			await self.bot.say('Invalid `!bio` format.\n`!bio [superstar]`')
 			return
-		bio = self.bot.dbhandler.superstar_bio('%'+superstar.replace(' ','%')+'%')
+		bio = self.dbhandler.superstar_bio('%'+superstar.replace(' ','%')+'%')
 		if bio:
 			name = bio['name'] + (' ({})'.format(bio['official_twitter']) if bio['official_twitter'] else '')
 			height = 'Height: {}\n'.format(bio['height']) if bio['height'] else ''
@@ -142,30 +144,30 @@ class WWE:
 
 	@commands.command(name='birthdays')
 	async def superstar_birthdays(self):
-		bdays = self.bot.dbhandler.superstar_birthdays()
+		bdays = self.dbhandler.superstar_birthdays()
 		await self.bot.say('```Birthdays This Month\n-------------\n{}```'.format('\n'.join(['[{}] {}'.format(b['dob'],b['name']) for b in bdays])))
 
 	@commands.command(name='superstars', aliases=['superstarlist', 'listsuperstars'])
 	async def all_superstars(self):
-		sl = self.bot.dbhandler.superstars()
+		sl = self.dbhandler.superstars()
 		sl = [s['name'] for s in sl]
 		await self.bot.say('```{}```'.format('\n'.join(sl)))
 
 	@commands.command(name='leaderboard', aliases=['leaderboards'])
 	async def current_leaderboard(self):
-		lb = self.bot.dbhandler.leaderboard()
+		lb = self.dbhandler.leaderboard()
 		lb = ['{}. {} ({:,})'.format(i+1,l['username'],l['total_points']) for i, l in enumerate(lb)]
 		await self.bot.say('```TOP 10 (Season 2)\n------\n{}```'.format('\n'.join(lb)))
 
 	@commands.command(name='leaderboard_s1', aliases=['leaderboards1', 's1leaderboard'])
 	async def leaderboard_season1(self):
-		lb = self.bot.dbhandler.leaderboard_s1()
+		lb = self.dbhandler.leaderboard_s1()
 		lb = ['{}. {} ({:,})'.format(i+1,l['username'],l['points']) for i, l in enumerate(lb)]
 		await self.bot.say('```TOP 10 (Season 1)\n------\n{}```'.format('\n'.join(lb)))
 
 	@commands.command(name='titles', aliases=['champions','champs'])
 	async def current_champions(self):
-		ts = self.bot.dbhandler.titles()
+		ts = self.dbhandler.titles()
 		ts = ['{}\n{}'.format(t['title'], t['superstar']) for t in ts]
 		await self.bot.say('```WWE Titles\n----------\n{}```'.format('\n\n'.join(ts)))
 
@@ -175,9 +177,9 @@ class WWE:
 
 	@commands.command(name='stats', aliases=['mystats'], pass_context=True)
 	async def user_stats(self, ctx):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user:
-			user = self.bot.dbhandler.user_stats(user['id'])
+			user = self.dbhandler.user_stats(user['id'])
 			try:
 				ratio = '{:.3f}'.format(user['wins']/user['losses'])
 			except:
@@ -188,9 +190,9 @@ class WWE:
 
 	@commands.command(name='stats_s1', aliases=['s1stats', 's1_stats'], pass_context=True)
 	async def user_stats_season1(self, ctx):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user:
-			user = self.bot.dbhandler.user_stats_s1(user['id'])
+			user = self.dbhandler.user_stats_s1(user['id'])
 			try:
 				ratio = '{:.3f}'.format(user['s1_wins']/user['s1_losses'])
 			except:
@@ -201,18 +203,18 @@ class WWE:
 
 	@commands.command(name='points', aliases=['mypoints', ], pass_context=True)
 	async def user_points(self, ctx):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user:
-			user = self.bot.dbhandler.user_stats(user['id'])
+			user = self.dbhandler.user_stats(user['id'])
 			await self.bot.say('```Username: {}\nTotal Points: {:,}\nAvailable Points: {:,}```'.format(user['username'], user['total_points'], user['available_points']))
 		else:
 			await self.bot.say('You are not registered.\nPlease visit http://wwe.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
 
 	@commands.command(name='bets', aliases=['mybets'], pass_context=True)
 	async def user_current_bets(self, ctx):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user:
-			bets = self.bot.dbhandler.user_bets(user['id'])
+			bets = self.dbhandler.user_bets(user['id'])
 			if bets:
 				await self.bot.say("{}'s Current Bets\n```{}```".format(ctx.message.author.mention, '\n'.join(['Match {}\n  {:,} points on {}\n  Potential Pot Winnings: {}%'.format(bet['match_id'],bet['points'],bet['contestants'],bet['pot_cut']*100) for bet in bets])))
 			else:
@@ -227,7 +229,7 @@ class WWE:
 		except:
 			await self.bot.say('Invalid `!match` format.\n`!match [match_id]`')
 			return
-		m = self.bot.dbhandler.match(match_id)
+		m = self.dbhandler.match(match_id)
 		if m:
 			msg = '[Match {}] {}\nEvent: {}\nRating: {} ({:.3f})\nPot: {:,} ({}x) -> {}\nBets: {}\n{}{} {}\n\t{}\nTeam Won: {}{}'.format(
 				m['id'],
@@ -251,7 +253,7 @@ class WWE:
 
 	@commands.command(name='matches', aliases=['openmatches'])
 	async def open_matches(self):
-		match_set = self.bot.dbhandler.open_matches()
+		match_set = self.dbhandler.open_matches()
 		if match_set:
 			matches = ['[Match {}] {}\nEvent: {}\nBase Pot: {:,}\nBets: {}\n{}{}{}\n\t{}'.format(
 				v['id'],
@@ -278,7 +280,7 @@ class WWE:
 
 	@commands.command(name='bet', pass_context=True)
 	async def bet_match(self, ctx, *args):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user:
 			try:
 				bet = int(args[0])
@@ -290,11 +292,11 @@ class WWE:
 			if bet<1:
 				await self.bot.say('Invalid bet. Try again, {}.'.format(ctx.message.author.mention))
 				return
-			user = self.bot.dbhandler.user_stats(user['id'])
+			user = self.dbhandler.user_stats(user['id'])
 			if user['available_points'] < bet:
 				await self.bot.say('Insufficient points available. Try again, {}.'.format(ctx.message.author.mention))
 				return
-			match = self.bot.dbhandler.open_matches()
+			match = self.dbhandler.open_matches()
 			if not match:
 				await self.bot.say('Match not found. Try again, {}.\nEnter `!matches` to view current matches.'.format(ctx.message.author.mention))
 				return
@@ -313,7 +315,7 @@ class WWE:
 			if not tm:
 				await self.bot.say('Invalid Team. Try again, {}.'.format(ctx.message.author.mention))
 				return
-			ub = self.bot.dbhandler.user_bet_check(user['id'], match['id'])
+			ub = self.dbhandler.user_bet_check(user['id'], match['id'])
 			if ub:
 				for t in match['team']:
 					if ub['team']==t[0]:
@@ -328,8 +330,8 @@ class WWE:
 			else:
 				confirm.content = confirm.content.upper()
 				if confirm.content=='Y':
-					if self.bot.dbhandler.user_bet(user['id'], match['id'], team, bet):
-						pot = self.bot.dbhandler.match(match['id'])['base_pot']
+					if self.dbhandler.user_bet(user['id'], match['id'], team, bet):
+						pot = self.dbhandler.match(match['id'])['base_pot']
 						await self.bot.say('{} placed a {:,} point bet on Match {} for **{}**!\nMatch Base Pot is now **{:,}** points.'.format(ctx.message.author.mention, bet, match['id'], tm, pot))
 					else:
 						await self.bot.say('{}, unable to process bet.'.format(ctx.message.author.mention))
@@ -340,7 +342,7 @@ class WWE:
 
 	@commands.command(name='rate', pass_context=True)
 	async def rate_match(self, ctx, *args):
-		user = self.bot.dbhandler.user_discord(ctx.message.author.id)
+		user = self.dbhandler.user_discord(ctx.message.author.id)
 		if user:
 			try:
 				if self.bot.current_match:
@@ -355,14 +357,14 @@ class WWE:
 			if rate<0 or rate>5:
 				await self.bot.say('Invalid match rating. Try again, {}.'.format(ctx.message.author.mention))
 				return
-			match = self.bot.dbhandler.match(match_id)
+			match = self.dbhandler.match(match_id)
 			if match:
 				#if match['team_won']==0:
 				#	await self.bot.say('Match rating unavailable - No decision yet, {}.'.format(ctx.message.author.mention))
 				if (datetime.datetime.today().date() - match['date']).days > 2:
 					await self.bot.say('Match rating unavailable - Past 48 hours of event date, {}.'.format(ctx.message.author.mention))
 				else:
-					if not self.bot.dbhandler.user_rate(user['id'], match['id'], rate):
+					if not self.dbhandler.user_rate(user['id'], match['id'], rate):
 						await self.bot.say('Something went wrong. Try again later, {}.'.format(ctx.message.author.mention))
 						return
 					if rate:
