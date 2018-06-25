@@ -1,17 +1,23 @@
+from datetime import datetime
+import asyncio
 import random
 
 from discord.ext import commands
 import discord
+
+from utils.dbhandler import DBHandler
+from utils import credentials
 
 
 class Member:
 
 	def __init__(self, bot):
 		self.bot = bot
+		self.dbhandler = DBHandler()
 		
 	@commands.command(name='commands', aliases=['misc'], pass_context=True)
 	async def misc_commands(self, ctx):
-		mcs = self.bot.dbhandler.misc_commands()
+		mcs = self.dbhandler.misc_commands()
 		await self.bot.say('```Miscellaneous Commands:\n{}```'.format('\n'.join(mcs)))
 
 	@commands.command(pass_context=True)
@@ -35,7 +41,7 @@ class Member:
 
 	@commands.command(name='uptime')
 	async def bot_uptime(self):
-		await self.bot.say('```Uptime: {}```'.format(datetime.datetime.now()-self.bot.start_dt))
+		await self.bot.say('```Uptime: {}```'.format(datetime.now()-self.bot.start_dt))
 
 	@commands.command(pass_context=True)
 	async def countdown(self):
@@ -84,7 +90,7 @@ class Member:
 		if member and member.bot: 
 			await self.bot.say('No.')
 			return
-		async for msg in bot.logs_from(ctx.message.channel, limit=50):
+		async for msg in self.bot.logs_from(ctx.message.channel, limit=50):
 			if msg.content.startswith('!') or '@' in msg.content: continue;
 			if msg.author == member:
 				mock_msg = ''.join([l.upper() if random.getrandbits(1) else l.lower() for l in msg.content])
