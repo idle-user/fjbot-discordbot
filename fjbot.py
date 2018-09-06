@@ -3,7 +3,6 @@ from datetime import datetime
 import sys, traceback
 import asyncio
 
-#from discord.ext import commands
 import discord
 
 from utils.dbhandler import DBHandler
@@ -13,27 +12,37 @@ from utils import credentials, checks
 startup_extensions = [
 	'cogs.admin',
 	'cogs.member',
-	'cogs.wwe',
+	'cogs.matches',
 	'cogs.twitter',
 	'cogs.chatango',
 ]
 description='FJBot is a Discord Bot written in Python by FancyJesse'
 bot = discord.ext.commands.Bot(command_prefix='!', description=description)
+channel_log = discord.Object(id=credentials.discord['channel']['log'])
+
+
+def log(message):
+	print(message)
+	bot.loop.create_task(discord_log(message))
+
+async def discord_log(message):
+	await bot.wait_until_ready()
+	await bot.send_message(channel_log, '```{}```'.format(message))
 
 @bot.event
 async def on_command_error(error, ctx):
-	if 'is not found' in str(error):
+	if 'is not found' in str(error) or ctx.message.channel.is_private:
 		return
-	if ctx.message.channel.is_private:
-		pass
 	else:
-		owner = ctx.message.server.get_member(credentials.discord['owner_id'])
-		if owner:
-			await bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format(error, ctx.message.channel, ctx.message.author, ctx.message.content))
-		raise error		
+		bot.log('{}\n[{}] {}: {}'.format(error, ctx.message.channel, ctx.message.author, ctx.message.content))
+		#owner = ctx.message.server.get_member(credentials.discord['owner_id'])
+		#if owner:
+			#await bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format(error, ctx.message.channel, ctx.message.author, ctx.message.content))
+		#raise error
 
 @bot.event
 async def on_member_join(member):
+	channel_general = discord.Object(id=credentials.discord['channel']['general'])
 	role = discord.utils.get(member.server.roles, name=credentials.discord['role']['default'])
 	await bot.add_roles(member, role)
 	await bot.send_message(channel_general, 'Welcome to {}, {}! Say hi!'.format(member.server.name, member.mention))
@@ -54,13 +63,13 @@ async def on_message(message):
 @bot.event
 async def on_ready():
 	bot.start_dt = datetime.now()
-	print('[{}] Discord: Logged in as {}({})'.format(bot.start_dt, bot.user.name, bot.user.id))
-
+	bot.log('[{}] Discord {}: START'.format(bot.start_dt, bot.user.name))
 
 @bot.command(name='load', hidden=True)
 @checks.is_owner()
 async def cog_load(cog:str):
 	try:
+		cog = cog if 'cogs.' in cog else 'cogs.{}'.format(cog)
 		bot.load_extension(cog)
 		await bot.say('```{} loaded```'.format(cog))
 	except (AttributeError, ImportError) as e:
@@ -70,6 +79,7 @@ async def cog_load(cog:str):
 @checks.is_owner()
 async def cog_unload(cog:str):
 	try:
+		cog = cog if 'cogs.' in cog else 'cogs.{}'.format(cog)
 		bot.unload_extension(cog)
 		await bot.say('```{} unloaded```'.format(cog))
 	except (AttributeError, ImportError) as e:
@@ -79,6 +89,7 @@ async def cog_unload(cog:str):
 @checks.is_owner()
 async def cog_reload(cog:str):
 	try:
+		cog = cog if 'cogs.' in cog else 'cogs.{}'.format(cog)
 		bot.unload_extension(cog)
 		bot.load_extension(cog)
 		await bot.say('```{} reloaded```'.format(cog))
@@ -88,6 +99,7 @@ async def cog_reload(cog:str):
 if __name__ == '__main__':
 	try:
 		bot.dbhandler = DBHandler()
+		bot.log = log
 		for extension in startup_extensions:
 			try:
 				bot.load_extension(extension)

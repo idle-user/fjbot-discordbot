@@ -25,23 +25,23 @@ class Member:
 		owner = ctx.message.server.get_member(credentials.discord['owner_id'])
 		if owner:
 			await self.bot.send_message(owner, '```\nREPORT\n[#{0.channel}] {0.author}: {0.content}```'.format(ctx.message))
-			await self.bot.say('Report sent.')
+			await self.bot.say('`Report sent.`')
 		
 	@commands.command(pass_context=True)
 	async def joined(self, member:discord.Member):
-		await self.self.bot.say('{0.name} joined in {0.joined_at}'.format(member))
+		await self.self.bot.say('`{0.name} joined in {0.joined_at}`'.format(member))
 	
 	@commands.command()
 	async def invite(self):
-		await self.bot.say('TBD')
+		await self.bot.say('`TBD`')
 
 	@commands.command(name='role', aliases=['roles', 'toprole'], pass_context=True)
 	async def member_roles(self, ctx):
-		await self.bot.say('Your Roles: {}'.format([role.name for role in ctx.message.author.roles]).replace('@',''))
+		await self.bot.say('`Your Roles: {}`'.format([role.name for role in ctx.message.author.roles]).replace('@',''))
 
 	@commands.command(name='uptime')
 	async def bot_uptime(self):
-		await self.bot.say('```Uptime: {}```'.format(datetime.now()-self.bot.start_dt))
+		await self.bot.say('`Uptime: {}`'.format(datetime.now()-self.bot.start_dt))
 
 	@commands.command(pass_context=True)
 	async def countdown(self):
@@ -58,7 +58,7 @@ class Member:
 
 	@commands.command(name='roll', aliases=['dice'])
 	async def roll_dice(self):
-		await self.bot.say('You rolled a `{}` and a `{}`.'.format(random.randint(1,6), random.randint(1,6)))
+		await self.bot.say('You rolled `{}` and `{}`.'.format(random.randint(1,6), random.randint(1,6)))
 
 	@commands.command(name='slap', pass_context=True)
 	async def slap_member(self, ctx, member:discord.Member=None, reason=None):
@@ -95,7 +95,7 @@ class Member:
 			if msg.author == member:
 				mock_msg = ''.join([l.upper() if random.getrandbits(1) else l.lower() for l in msg.content])
 				await self.bot.say('```"{}"\n    - {}```'.format(mock_msg, member))
-				break	
+				break
 	
 def setup(bot):
 	bot.add_cog(Member(bot))

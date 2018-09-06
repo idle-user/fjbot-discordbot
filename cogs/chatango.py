@@ -35,7 +35,6 @@ class Chatango:
 			self.setFontColor('000099')
 			self.setFontFace('Arial')
 			self.setFontSize(14)
-			print('[{}] Chatango {}: START'.format(datetime.now(), self.name))
 		def onMessage(self, room, user, message):
 			self.users.append(user.name)
 			msg = '[{}] @{}: {}'.format(room.name, user.name, message.body)
@@ -90,6 +89,7 @@ class Chatango:
 			except:
 				print('Failed to PM User:', username)
 		def command_handler(self, username, cmd, args=[]):
+			cmd = cmd.lower()
 			res = False
 			if cmd == '!register':
 				res = self.register(username)
@@ -105,35 +105,37 @@ class Chatango:
 			elif cmd == '!rumble':
 				res = self.royalrumble_entry(username, args)
 			elif cmd == '!commands':
-				res = ' | '.join(self.myapi.dbhandler.misc_commands())
+				res = ' | '.join(self.bot.dbhandler.misc_commands())
 			elif cmd == '!pmme':
 				res = 'Test PM'
 			else:
-				res = self.myapi.dbhandler.discord_command(cmd)
+				res = self.bot.dbhandler.discord_command(cmd)
 				if res:
 					res = res['response'].replace('\n', ' ')
 					if('@mention' in res): res = res.replace('@mention', '@{}'.format(username))
 			if res:
 				self.sendUserMessage(username, res)
 		def verify(self, username):
-			data = self.myapi.dbhandler.chatango_username_info(username)
+			data = self.bot.dbhandler.user_by_chatango(username)
 			return data
 		def register(self, username):
 			if self.verify(username):
 				return '@{}, you are already registered. Use `!help` to get a list of commands'.format(username)
-			data = self.myapi.dbhandler.chatango_register(username)
+			data = self.bot.dbhandler.chatango_register(username)
 			if data:
+				self.bot.log('[chatango] {} has registered.'.format(username))
 				return '@{}, registration was successful! Remember to set a password for your account by using `!resetpw`. For other commands, use `!help`.'.format(username)
 			else:
-				print('chatango.register: Failed to register:',username)
+				self.bot.log('[chatango] Failed to register: {}'.format(username))
 				return False
 		def reset_pw(self, username):
-			user_id = self.verify(username)['user_id']
-			temp = self.myapi.dbhandler.user_temp_password(user_id)
-			return 'Visit https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=wwe to set a new password. Link will expire in 30 minutes.'.format(temp, user_id, username)
+			user_id = self.verify(username)['id']
+			temp = self.bot.dbhandler.user_temp_password(user_id)
+			return 'Visit https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches to set a new password. Link will expire in 30 minutes.'.format(temp, user_id, username)
 		def rate_match(self, username, rating=0):
-			if not self.myapi.current_match:
+			if not self.bot.current_match:
 				return 'No Current Match set for Rating.'
+			match_id = self.bot.current_match.id
 			try:
 				rating = float(rating)
 			except:
@@ -141,18 +143,19 @@ class Chatango:
 			if rating<1 or rating>5:
 				return 'Not a valid star rating. (1-5)'
 			try:
-				if self.myapi.dbhandler.user_rate(self.verify(username)['user_id'], self.myapi.current_match['id'], rating):
+				if self.bot.dbhandler.user_rate(self.verify(username)['id'], match_id, rating):
+					self.bot.log('[chatango] {} rated Match {} {} stars.'.format(username, match_id, rating))
 					return '{} Star Match rating received.'.format(rating)
 			except Exception as e:
-				print('Exception:rate_match:',e, username, self.myapi.current_match['id'], rating)
+				self.bot.log('[chatango] Exception:rate_match: {} {} {} {}', e, username, match_id, rating)
 		def royalrumble_entry(self, username, args=[]):
 			if not args or args[0] != 'now':
-				return 'Login and visit the Event section on https://fancyjesse.com/projects/wwe to join the Rumble! If you have not set a password, use !resetpw. Or skip everything and just get an entry nuumber using command "!rumble now"'
-			user_id = self.verify(username)['user_id']
-			res = self.myapi.dbhandler.royalrumble_check(user_id)
+				return 'Login and visit the Event section on https://fancyjesse.com/projects/matches to join the Rumble! If you have not set a password, use !resetpw. Or skip everything and just get an entry nuumber using command "!rumble now"'
+			user_id = self.verify(username)['id']
+			res = self.bot.dbhandler.royalrumble_check(user_id)
 			if res:
 				return 'You have already entered as #{} on {}'.format(res['number'], res['dt_entered'])
-			res  = self.myapi.dbhandler.royalrumble_entry(user_id)
+			res  = self.bot.dbhandler.royalrumble_entry(user_id)
 			if res:
 				res = 'You have entered the Royal Rumble as #{}'.format(res)
 			else:
@@ -160,7 +163,7 @@ class Chatango:
 			return res
 
 	def start_chbot(self):
-		self.ChBot.easy_start(credentials.chatango['rooms'], credentials.chatango['username'], credentials.chatango['secret'])		
+		self.ChBot.easy_start(credentials.chatango['rooms'], credentials.chatango['username'], credentials.chatango['secret'])
 
 	async def chatango_bot_task(self):
 		await self.bot.wait_until_ready()
@@ -168,7 +171,7 @@ class Chatango:
 		t_stream = Thread(target=self.start_chbot)
 		await self.bot.loop.run_in_executor(executor, t_stream.start)
 		await self.bot.loop.run_in_executor(executor, t_stream.join)
-		print('END chatango_bot_task')
+		self.bot.log('END chatango_bot_task')
 	
 	async def wait_until_chbot_running(self, limit=30):
 		while limit > 0:
@@ -183,13 +186,15 @@ class Chatango:
 		global chbot
 		await self.bot.wait_until_ready()
 		await self.wait_until_chbot_running()
-		chbot.myapi = self.bot
+		chbot.bot = self.bot
+		self.bot.log('[{}] Chatango {}: START'.format(datetime.now(), chbot.name))
+		self.bot.log('Starting Chatango Stream ...')
 		while not self.bot.is_closed and chbot._running:
 			while chbot.buffer:
 				await self.bot.send_message(self.channel_chatango, '```{}```'.format(chbot.buffer.pop(0)))
-				await asyncio.sleep(0.2)
+				await asyncio.sleep(0.5)
 			await asyncio.sleep(1)
-		print('END chatango_log_task')
+		self.bot.log('END chatango_log_task')
 
 	@commands.command(name='ch', pass_context=True)
 	@checks.is_owner()
@@ -210,7 +215,7 @@ class Chatango:
 	@commands.command(name='chusers', pass_context=True)
 	@checks.is_owner()
 	async def display_users(ctx):
-		await self.bot.say('Chatango User List ({})\n {}'.format(len(chbot.users), chbot.users))
+		await self.bot.say('```Chatango User List ({})\n {}```'.format(len(chbot.users), chbot.users))
 
 def setup(bot):
 	bot.add_cog(Chatango(bot))

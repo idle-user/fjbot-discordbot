@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-from datetime import datetime
+import datetime
 import MySQLdb
 import random
 import string
 
+from .fjclasses import Match
 from .credentials import mysql
 
 
@@ -29,10 +30,10 @@ class DBHandler:
 			self.db = MySQLdb.connect(host=mysql['host'], db=mysql['db'], user=mysql['user'], passwd=mysql['secret'])
 			self.db.autocommit(True)
 			self.c = self.db.cursor(MySQLdb.cursors.DictCursor)
-			print('[{}] New DB Connection Started'.format(datetime.now()))
+			print('[{}] New DB Connection Started'.format(datetime.datetime.now()))
 			return True
 		except:
-			print('[{}] DB Connection Failed'.format(datetime.now()))
+			print('[{}] DB Connection Failed'.format(datetime.datetime.now()))
 			return False
 
 	# general
@@ -46,26 +47,66 @@ class DBHandler:
 		self.connect()
 		self.c.execute('CALL user_set_temp_secret(%s, %s);', (user_id, temp))
 		return temp
-	
-	# chatango
-	def chatango_username_info(self, username):
+
+	def user_by_discord(self, discord_id):
 		self.connect()
-		self.c.execute('SELECT * FROM user_chatango WHERE chatango_id=%s', (username,))
+		self.c.execute(""" 
+			SELECT id, username, access, discord_id FROM user
+			WHERE discord_id=%s"""
+		,(discord_id,))
 		return self.c.fetchone()
 	
+	def user_by_chatango(self, chatango_id):
+		self.connect()
+		self.c.execute(""" 
+			SELECT id, username, chatango_id FROM user
+			WHERE chatango_id=%s"""
+		,(chatango_id,))
+		return self.c.fetchone()
+
+	def user_by_twitter(self, twitter_id):
+		self.connect()
+		self.c.execute(""" 
+			SELECT id, username, twitter_id FROM user
+			WHERE twitter_id=%s"""
+		,(chatango_id,))
+		return self.c.fetchone()
+
+	# chatango
 	def chatango_register(self, username):
 		self.connect()
 		self.c.execute('CALL user_chatango_register(%s, @oid)', (username,))
 		self.c.execute('SELECT @oid')
 		return self.c.fetchone()
 
-	
 	# discord
 	# always called first - handles reconnect if connection has gone away
 	def discord_command(self, prefix):
 		self.connect()
 		self.c.execute('SELECT * FROM discord_command WHERE prefix=%s', (prefix,))
 		return self.c.fetchone()
+
+	def discord_command_add(self, command, response):
+		self.connect()
+		try:
+			self.c.execute("""
+				INSERT INTO discord_command (prefix, response)
+				VALUES (%s, %s)"""
+			,(command, response))
+			return True
+		except:
+			return False
+	
+	def discord_command_update(self, command, response):
+		self.connect()
+		try:
+			self.c.execute("""
+				UPDATE discord_command SET response=%s
+				WHERE prefix=%s"""
+			,(response, command))
+			return True
+		except:
+			return False
 	
 	
 	def discord_command_cnt(self, id):
@@ -81,238 +122,181 @@ class DBHandler:
 			ORDER BY prefix"""
 		)
 		return [mc['prefix'] for mc in self.c.fetchall()]
+
+	def add_event(self, date, name):
+		self.connect()
+		self.c.execute('INSERT INTO event (date, name) VALUES (%s, %s)',(date,name))
+		return self.c.fetchone()
 	
 	def next_event(self):
 		self.connect()
 		self.c.execute(""" 
 			SELECT 
-				wwe_event.date, wwe_event.start_time, wwe_event.name, wwe_event.ppv,
-				TIMESTAMP(wwe_event.date, wwe_event.start_time) as dt
-			FROM wwe_event
+				date, start_time, name, ppv,
+				TIMESTAMP(date, start_time) as dt
+			FROM event
 			WHERE TIMESTAMP(date, start_time) > NOW()
-			ORDER BY TIMESTAMP(wwe_event.date, wwe_event.start_time)
+			ORDER BY TIMESTAMP(date, start_time)
 			LIMIT 1"""
 		)	
 		return self.c.fetchone()
 	
-	def ppvs(self):
+	def events(self):
 		self.connect()
 		self.c.execute(""" 
-			SELECT wwe_event.date, wwe_event.name
-			FROM wwe_event
+			SELECT date, name
+			FROM event
 			WHERE date>=CURDATE() AND ppv=1
 			ORDER BY date LIMIT 10"""
 		)	
 		return self.c.fetchall()
 	
-	def user_discord(self, discord_id):
-		self.connect()
-		self.c.execute(""" 
-			SELECT user.id, user.username, user.access, user_discord.discord_id FROM user_discord
-			JOIN user ON user.id=user_discord.user_id
-			WHERE discord_id=%s"""
-		,(discord_id,))
-		return self.c.fetchone()
-	
-	def user_chatango(self, chatango_id):
-		self.connect()
-		self.c.execute(""" 
-			SELECT user.id, user.username, user_chatango.chatango_id FROM user_chatango
-			JOIN user ON user.id=user_chatango.user_id
-			WHERE chatango_id=%s"""
-		,(chatango_id,))
-		return self.c.fetchone()
-	
 	def user_stats(self, user_id):
 		self.connect()
-		self.c.execute('SELECT * FROM view_wwe_s2_user_stats WHERE id=%s', (user_id,))
+		self.c.execute('SELECT * FROM view_user_stats WHERE id=%s', (user_id,))
 		return self.c.fetchone()
 
-	def user_stats_s1(self, user_id):
-		self.connect()
-		self.c.execute('SELECT wwe_user_stats.*,user.username FROM wwe_user_stats JOIN user ON user.id=wwe_user_stats.user_id WHERE user_id=%s', (user_id,))
-		return self.c.fetchone()
-	
 	def superstar_bio(self, superstar):
 		self.connect()
-		self.c.execute('SELECT * FROM wwe_superstar WHERE name LIKE %s', (superstar,))
+		self.c.execute('SELECT * FROM superstar LEFT JOIN superstar_social ON superstar_id=superstar.id WHERE name LIKE %s', (superstar,))
 		return self.c.fetchone()
 	
 	def superstar_twitter(self):
 		self.connect()
-		self.c.execute('SELECT * FROM wwe_superstar WHERE official_twitter LIKE %s', ('@%',))
+		self.c.execute('SELECT * FROM superstar_social JOIN superstar ON superstar.id=superstar_id')
 		return self.c.fetchall()
 	
 	def superstar_update_twitter_id(self, superstar_id, twitter_id):
 		self.connect()
-		if twitter_id:
-			return self.c.execute('UPDATE wwe_superstar SET official_twitter_id=%s WHERE id=%s', (twitter_id, superstar_id))
-		else:
-			return self.c.execute('UPDATE wwe_superstar SET official_twitter=%s, official_twitter_id=%s WHERE id=%s', ('', '', superstar_id))
+		return self.c.execute('UPDATE superstar_social SET twitter_id=%s WHERE superstar_id=%s', (twitter_id, superstar_id))
+			
+	def superstar_update_twitter_log(self, superstar_id, follow):
+		self.connect()
+		return self.c.execute('UPDATE superstar_social SET twitter_discord_log=%s WHERE superstar_id=%s', (follow, superstar_id))
 			
 	def superstar_birthdays(self):
 		self.connect()
-		self.c.execute('SELECT name,dob,official_twitter FROM wwe_superstar WHERE brand_id!=5 AND MONTH(dob)=MONTH(NOW()) ORDER BY DAYOFYEAR(dob)')
+		self.c.execute('SELECT id,name,dob,twitter_name FROM superstar LEFT JOIN superstar_social ON superstar.id=superstar_id WHERE brand_id<5 AND MONTH(dob)=MONTH(NOW()) ORDER BY DAYOFYEAR(dob)')
 		return self.c.fetchall()
 	
 	def superstars(self):
 		self.connect()
-		self.c.execute('SELECT * FROM wwe_superstar ORDER BY name')
+		self.c.execute('SELECT * FROM superstar ORDER BY name')
+		return self.c.fetchall()
+
+	def superstar_search(self, name):
+		self.connect()
+		self.c.execute('SELECT * FROM superstar LEFT JOIN superstar_social ON superstar_id=superstar.id WHERE name LIKE %s ORDER BY name', (name,))
 		return self.c.fetchall()
 	
 	def leaderboard(self):
 		self.connect()
-		self.c.execute('SELECT * FROM view_wwe_s2_user_stats WHERE wins+losses>0 ORDER BY total_points DESC LIMIT 10')
+		self.c.execute('SELECT * FROM view_user_stats WHERE s2_wins+s2_losses>0 ORDER BY s2_total_points DESC LIMIT 10')
 		return self.c.fetchall()
 
 	def leaderboard_s1(self):
 		self.connect()
-		self.c.execute("""
-			SELECT 
-				user.username 
-				,wwe_user_stats.s1_wins AS wins
-				,wwe_user_stats.s1_losses AS losses				
-				,wwe_user_stats.s1_points AS points
-			FROM wwe_user_stats 
-			JOIN user on user.id=wwe_user_stats.user_id
-			WHERE s1_wins+s1_losses>0
-			ORDER BY points DESC
-			LIMIT 10"""
-		)
+		self.c.execute('SELECT * FROM view_user_stats WHERE s1_wins+s1_losses>0 ORDER BY s1_total_points DESC LIMIT 10')
 		return self.c.fetchall()
 	
 	def titles(self):
 		self.connect()
 		self.c.execute(""" 
 			SELECT 
-				wwe_title.name AS 'title'
-				,GROUP_CONCAT(wwe_superstar.name SEPARATOR ' & ') AS 'superstar'
-			FROM wwe_title
-			JOIN wwe_superstar ON wwe_superstar.id=wwe_title.superstar_id
-			GROUP BY wwe_title.name
-			ORDER BY wwe_title.id"""
+				title.name AS 'title'
+				,GROUP_CONCAT(superstar.name SEPARATOR ' & ') AS 'superstar'
+			FROM title
+			JOIN superstar ON superstar.id=title.superstar_id
+			GROUP BY title.name
+			ORDER BY title.id"""
 		)
 		return self.c.fetchall()
-	
+		
+	def latest_match(self):
+		self.connect()
+		self.c.execute(""" 
+			SELECT m.id 
+			FROM `match` m
+			JOIN event ON event.id=m.event_id
+			WHERE event.date=CURDATE() 
+			ORDER BY m.last_update_dt DESC
+			LIMIT 1"""
+		)
+		return self.c.fetchone()
+
+	def match_teams(self, match_id):
+		self.connect()
+		self.c.execute(""" 
+			SELECT mc.team, mc.bet_multiplier ,GROUP_CONCAT(s.name) AS members 
+			FROM match_contestant mc 
+			JOIN superstar s ON s.id=mc.superstar_id
+			WHERE mc.match_id=%s
+			GROUP BY team
+			ORDER BY team"""
+		, (match_id,))
+		return self.c.fetchall()
+
 	def open_matches(self):
 		self.connect()
 		self.c.execute(""" 
-			SELECT
-				view_wwe_s2_matches.*
-				,view_wwe_s2_matches_bets.*				
-				,wwe_match_type.name AS 'match_type'
-				,wwe_title.name AS 'title'
-				,wwe_match_contestant.team
-				,wwe_match_contestant.bet_multiplier AS 'team_bet_multiplier' 
-				,GROUP_CONCAT(wwe_superstar.name) AS 'contestants'
-			FROM view_wwe_s2_matches
-			JOIN view_wwe_s2_matches_bets ON view_wwe_s2_matches_bets.id=view_wwe_s2_matches.id
-			JOIN wwe_match_type ON wwe_match_type.id=view_wwe_s2_matches.match_type_id
-			JOIN wwe_match_contestant ON wwe_match_contestant.match_id=view_wwe_s2_matches.id
-			JOIN wwe_superstar ON wwe_superstar.id=wwe_match_contestant.superstar_id
-			LEFT JOIN wwe_title ON wwe_title.id=view_wwe_s2_matches.title_id
-			WHERE view_wwe_s2_matches.team_won=0 AND view_wwe_s2_matches.match_type_id>0
-			GROUP BY view_wwe_s2_matches.id, wwe_match_contestant.team
-			ORDER BY view_wwe_s2_matches.date DESC, view_wwe_s2_matches_bets.bet_multiplier DESC"""
+			SELECT vm.*
+			FROM view_matches vm
+			WHERE vm.completed=0 AND vm.match_type_id<>0"""
 		)
-		matches = self.c.fetchall()
-		if matches:
-			match_set = {}
-			for m in matches:
-				if not m['id'] in match_set:
-					match_set[m['id']] = {
-						'id':m['id'],
-						'date':m['date'],
-						'event':m['event'],
-						'title':m['title'],
-						'bet_open':m['bet_open'],
-						'match_type':m['match_type'],
-						'match_note':m['match_note'],
-						'bet_multiplier':m['bet_multiplier'],
-						'base_pot':m['base_pot'],
-						'total_pot':m['total_pot'],
-						'team':[],
-						}
-				match_set[m['id']]['team'].append((m['team'],m['team_bet_multiplier'],m['contestants']))
-			return match_set
+		rows = self.c.fetchall()
+		if rows:
+			ms = []
+			for row in rows:
+				m = Match(row)
+				m.set_teams(self.match_teams(m.id))
+				ms.append(m)	
+			return ms
 		return False
 	
 	def match(self, match_id):
 		self.connect()
 		self.c.execute(""" 
-			SELECT
-				view_wwe_all_matches.*
-				,view_wwe_all_matches_bets.*
-				,wwe_match_type.name AS 'match_type'
-				,wwe_title.name AS 'title'
-				,wwe_match_contestant.team
-				,wwe_match_contestant.bet_multiplier AS 'team_bet_multiplier'
-				,GROUP_CONCAT(wwe_superstar.name) AS 'contestants'
-			FROM view_wwe_all_matches
-			JOIN view_wwe_all_matches_bets ON view_wwe_all_matches_bets.id=view_wwe_all_matches.id
-			JOIN wwe_match_type ON wwe_match_type.id=view_wwe_all_matches.match_type_id
-			JOIN wwe_match_contestant ON wwe_match_contestant.match_id=view_wwe_all_matches.id
-			JOIN wwe_superstar ON wwe_superstar.id=wwe_match_contestant.superstar_id
-			LEFT JOIN wwe_title ON wwe_title.id=view_wwe_all_matches.title_id
-			WHERE view_wwe_all_matches.id=%s
-			GROUP BY view_wwe_all_matches.id, wwe_match_contestant.team"""
+			SELECT vm.*
+			FROM view_matches vm
+			WHERE vm.id=%s"""
 		, (match_id,))
-		matches = self.c.fetchall()
-		if matches:
-			match_set = {}
-			for m in matches:
-				if not m['id'] in match_set:
-					match_set[m['id']] = {
-						'id':m['id'],
-						'date':m['date'],
-						'event':m['event'],
-						'title':m['title'],
-						'bet_open':m['bet_open'],
-						'team_won':m['team_won'],
-						'superstars':m['superstars'],
-						'match_type':m['match_type'],
-						'match_note':m['match_note'],
-						'rating':m['user_rating_avg'],
-						'winner_note':m['winner_note'],
-						'bet_multiplier':m['bet_multiplier'],
-						'base_pot':m['base_pot'],
-						'total_pot':m['total_pot'],
-						'team':[],
-						}
-				match_set[m['id']]['team'].append((m['team'],m['team_bet_multiplier'],m['contestants']))
-			return match_set.get(match_id, None)
+		row = self.c.fetchone()
+		if row:
+			m = Match(row)
+			m.set_teams(self.match_teams(m.id))
+			return m
 		return False
 	
 	def user_bets(self, user_id):
 		self.connect()
 		self.c.execute(""" 
 			SELECT
-				wwe_user_bet.match_id
-				,wwe_user_bet.team
-				,GROUP_CONCAT(wwe_superstar.name) AS 'contestants'
-				,wwe_user_bet.points
-				,wwe_user_bet.points/FUNC_WWE_MATCH_TEAM_POT(wwe_match.id, wwe_user_bet.team) AS 'pot_cut' 
-			FROM wwe_user_bet
-			JOIN wwe_match ON wwe_match.id=wwe_user_bet.match_id
-			JOIN wwe_match_contestant ON wwe_match_contestant.match_id=wwe_match.id 
-				AND wwe_match_contestant.team=wwe_user_bet.team
-			JOIN wwe_superstar ON wwe_superstar.id=wwe_match_contestant.superstar_id
-			WHERE wwe_match.team_won=0 AND wwe_user_bet.user_id=%s
-			GROUP BY wwe_match.id, wwe_match_contestant.team
-			ORDER BY wwe_match.id"""
-		, (user_id,))
+				ub.match_id
+				,ub.user_id
+				,GROUP_CONCAT(s.name) AS 'contestants'
+				,ub.points
+				,ubc.potential_cut_pct
+				,ubc.potential_cut_points 
+			FROM user_bet ub 
+			JOIN user_bet_calculations ubc ON ubc.match_id=ub.match_id and ubc.user_id=%s
+			JOIN match_contestant mc ON mc.match_id=ub.match_id AND ub.team=mc.team 
+			JOIN superstar s on s.id=mc.superstar_id 
+			JOIN `match` m ON m.id=ub.match_id 
+			WHERE m.team_won=0 and ub.user_id=%s
+			GROUP BY m.id"""
+		, (user_id, user_id))
 		return self.c.fetchall()
 	
 	def user_bet_check(self, user_id, match_id):
 		self.connect()
-		self.c.execute('SELECT * FROM wwe_user_bet WHERE user_id=%s AND match_id=%s', (user_id, match_id))
+		self.c.execute('SELECT * FROM user_bet WHERE user_id=%s AND match_id=%s', (user_id, match_id))
 		return self.c.fetchone()
 	
 	def user_bet(self, user_id, match_id, team, points):
 		self.connect()
 		try:
 			self.c.execute(""" 
-				INSERT INTO wwe_user_bet (user_id, match_id, team, points, dt_placed)
+				INSERT INTO user_bet (user_id, match_id, team, points, dt_placed)
 				VALUES (%s, %s, %s, %s, NOW())"""
 			, (user_id, match_id, team, points))
 			return True
@@ -323,7 +307,7 @@ class DBHandler:
 		self.connect()
 		try:
 			self.c.execute(""" 
-			INSERT INTO wwe_user_match_rating (user_id, match_id, rate, updates, dt_updated)
+			INSERT INTO user_match_rating (user_id, match_id, rate, updates, dt_updated)
 			VALUES (%s, %s, %s, 1, NOW())
 			ON DUPLICATE KEY UPDATE rate=%s, updates=updates+1, dt_updated=NOW()"""
 			, (user_id, match_id, rate, rate))
@@ -334,9 +318,9 @@ class DBHandler:
 	def royalrumble_check(self, user_id):
 		self.connect()
 		try:
-			self.c.execute('SELECT * FROM wwe_royalrumble WHERE winner=0 LIMIT 1')
+			self.c.execute('SELECT * FROM royalrumble WHERE winner=0 LIMIT 1')
 			rumble_id = self.c.fetchone()['id']
-			self.c.execute('SELECT * FROM wwe_royalrumble_entry WHERE royalrumble_id=%s AND user_id=%s',(rumble_id, user_id))
+			self.c.execute('SELECT * FROM royalrumble_entry WHERE royalrumble_id=%s AND user_id=%s',(rumble_id, user_id))
 			return self.c.fetchone()
 		except:
 			return False
@@ -345,19 +329,20 @@ class DBHandler:
 		self.connect()
 		try:
 			user = self.user_info(user_id)
-			self.c.execute('SELECT * FROM wwe_royalrumble WHERE winner=0 LIMIT 1')
+			self.c.execute('SELECT * FROM royalrumble WHERE winner=0 LIMIT 1')
 			data = self.c.fetchone()
 			rumble_id = data['id']
-			self.c.execute('SELECT DISTINCT number FROM wwe_royalrumble_entry WHERE royalrumble_id=%s',(rumble_id,))
+			self.c.execute('SELECT DISTINCT number FROM royalrumble_entry WHERE royalrumble_id=%s',(rumble_id,))
 			max_e = data['entries']
 			available_nums = list(range(1,max_e+1))
-			self.c.execute('SELECT DISTINCT number FROM wwe_royalrumble_entry WHERE royalrumble_id=%s',(rumble_id,))
+			self.c.execute('SELECT DISTINCT number FROM royalrumble_entry WHERE royalrumble_id=%s',(rumble_id,))
 			curr_e = [i['number'] for i in self.c.fetchall()]
 			available_nums = list(set(available_nums)-set(curr_e))
 			if not available_nums:
 				available_nums = list(range(1,max_e+1))
 			rand_entry = random.choice(available_nums)
-			self.c.execute('INSERT INTO wwe_royalrumble_entry (royalrumble_id, username, user_id, number, dt_entered) VALUES (%s, %s, %s, %s, NOW())', (rumble_id, user['username'], user['id'], rand_entry))
+			self.c.execute('INSERT INTO royalrumble_entry (royalrumble_id, username, user_id, number, dt_entered) VALUES (%s, %s, %s, %s, NOW())', (rumble_id, user['username'], user['id'], rand_entry))
 			return rand_entry
 		except Exception as e:
 			return False
+
