@@ -33,7 +33,33 @@ TODO
 
 Release History
 ------------------------------------------------------------------------
-TODO
+2018.09.06
+* Database redesign (yet to be included in repository)
+* Various database optimization within dbhandler
+* Created Class module for readability
+* Removed \_\_obosolete__ directory
+* Updated logging between COGs - all use main fjbot function now
+* Added admin commands
+* Heavily updated chatango COG
+* Updated tweet log within twitter COG to use async functions
+* Started progress on twitter COG to accept PMs
+* Added additional checks
+* Renamed COG wwe to matches
+* Bug fixes
+
+2018.06.24
+* Updated database reference between COGs
+* Added ch.py library used for the chatango.py COG
+* Bug fixes
+
+2018.06.10
+* Bug fixes with COG communication
+
+2018.06.09
+* Transition to COG model
+
+2018.06.08
+* Initial introduction to GitHub
 
 
 License
