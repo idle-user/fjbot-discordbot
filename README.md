@@ -14,7 +14,7 @@ This Discord Bot was originally created for a Discord Server in 2017 that focuse
 
 Integration with Twitter and Chatango was later added onto the bot. 
 
-Originally, the bot existed on a single Python file. I had no idea I would be supporting this bot for close to a year or even begin scaling it to include additonal features. With all these additional featues, I decided to transition this Discord Bot project to use COGs. The non-COGs version (very messy) can be found inside the obsolete directory.
+Originally, the bot existed on a single Python file. I had no idea I would be supporting this bot for close to a year or even begin scaling it to include additonal features. With all these additional featues, I decided to transition this Discord Bot project to use COGs.
 
 Prerequisites
 ------------------------------------------------------------------------
