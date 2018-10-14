@@ -33,7 +33,7 @@ class Chatango:
 			self.users = []
 			self.setNameColor('000099')
 			self.setFontColor('000099')
-			self.setFontFace('Arial')
+			self.setFontFace('Times')
 			self.setFontSize(14)
 		def onMessage(self, room, user, message):
 			self.users.append(user.name)
@@ -94,30 +94,42 @@ class Chatango:
 			if cmd == '!register':
 				res = self.register(username)
 			elif cmd == '!help':
-				res = '!resetpw - Get a temporary password for the website | !rate - Rate the current match | !rumble - Get an entry number the Royal Rumble | !commands - get a list of other commands'
+				res = '!resetpw - Get a temporary password for the website | !rate - Rate the current match | !mypoints - View your Match Points | !bet - Bet on a current match with your Match Points | !rumble - Get an entry number the Royal Rumble | !commands - get a list of other commands'
 			elif cmd == '!resetpw':
 				res = self.reset_pw(username)
+			elif cmd in ['!mypoints', '!points', '!mystats', '!stats']:
+				res = self.display_stats(username)
+			elif cmd == '!matches':
+				res = self.open_matches()
+			elif cmd == '!bet':
+				try:
+					res = self.bet_match(username, args)
+				except Exception as e:
+					self.bot.log('[chatango] Exception:command_handler: {} {} {} {}'.format(username, cmd, e ,args))
 			elif cmd == '!rate':
 				try:
 					res = self.rate_match(username, args[0])
 				except Exception as e:
-					print('Exception:command_handler:',e, username, cmd, args)
+					self.bot.log('[chatango] Exception:command_handler: {} {} {} {}'.format(username, cmd, e ,args))
 			elif cmd == '!rumble':
 				res = self.royalrumble_entry(username, args)
 			elif cmd == '!commands':
 				res = ' | '.join(self.bot.dbhandler.misc_commands())
-			elif cmd == '!pmme':
-				res = 'Test PM'
+			elif cmd == '!test':
+				res = 'This is a test message\nTest'
 			else:
 				res = self.bot.dbhandler.discord_command(cmd)
 				if res:
-					res = res['response'].replace('\n', ' ')
+					res = res['response']
 					if('@mention' in res): res = res.replace('@mention', '@{}'.format(username))
 			if res:
 				self.sendUserMessage(username, res)
 		def verify(self, username):
-			data = self.bot.dbhandler.user_by_chatango(username)
-			return data
+			try:
+				user = self.bot.dbhandler.user_by_chatango(username)
+				return user
+			except:
+				return False
 		def register(self, username):
 			if self.verify(username):
 				return '@{}, you are already registered. Use `!help` to get a list of commands'.format(username)
@@ -129,9 +141,59 @@ class Chatango:
 				self.bot.log('[chatango] Failed to register: {}'.format(username))
 				return False
 		def reset_pw(self, username):
-			user_id = self.verify(username)['id']
-			temp = self.bot.dbhandler.user_temp_password(user_id)
-			return 'Visit https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches to set a new password. Link will expire in 30 minutes.'.format(temp, user_id, username)
+			user = self.verify(username)
+			temp = self.bot.dbhandler.user_temp_password(user.id)
+			return 'Visit https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches to set a new password. Link will expire in 30 minutes.'.format(temp, user.id, user.username)
+		def open_matches(self):
+			matches = self.bot.dbhandler.open_matches()
+			if matches:
+				return ' | '.join(['[{} - {}]'.format(m.match_type, m.contestants) for m in matches])
+			else:
+				return 'No Open Matches available.'
+		def display_stats(self, username):
+			try:
+				stats = self.bot.dbhandler.user_stats(self.verify(username).id)
+				return 'Total Points: {:,} | Available Points: {:,} | Wins: {} | Losses: {} | Profile: https://fancyjesse.com/projects/matches/user?user_id={}'.format(stats['s2_total_points'], stats['s2_available_points'], stats['s2_wins'], stats['s2_losses'], stats['id'])
+			except Exception as e:
+				self.bot.log('[chatango] Exception:display_stats: {} {}'.format(username, e))
+		def bet_match(self, username, args):
+			try:
+				bet = int(args[0])
+				contestant = str(args[1])
+			except:
+				return 'Invalid `!bet` format. Use `!bet [bet_amount] [contestant]`'
+			if bet<1:
+				return 'Invalid bet amount. Try again'
+			try:
+				user = self.bot.dbhandler.user_stats(self.verify(username).id)
+				if user['s2_available_points'] < bet:
+					return 'Insufficient points available. You only have `{}` points. Please try again.'.format(user['s2_available_points'])
+				matches = self.bot.dbhandler.open_matches()
+				if not matches:
+					return 'No Open Matches found. Enter `!matches` to see a list of Open Matches.'
+				match = None
+				for m in matches:
+					if m.contains_contestant(contestant):
+						match = m
+						team_id = m.team_by_contestant(contestant)
+						break
+				if not match:
+					return 'Match not found with `{}`. Enter `!matches` to see a list of Open Matches. Please try again.'.format(contestant)
+				if not match.bet_open:
+					return 'Match bets are closed. Enter `!matches` to see a list of Open Matches. Please try again.'
+				team_members = match.contestants_by_team(team_id)
+				ub = self.bot.dbhandler.user_bet_check(user['id'], match.id)
+				if ub:
+					return 'You already have a {:,} point bet placed on {}.'.format(ub['points'], team_members)
+				if self.bot.dbhandler.user_bet(user['id'], match.id, team_id, bet):
+					pot = self.bot.dbhandler.match(match.id).base_pot
+					self.bot.log('[chatango] {} placed a {:,} point bet on Match {} for {}.'.format(username, bet, match.id, team_members))
+					return 'You placed a `{:,}` point bet on Match {} for **{}**! Match Base Pot is now **{:,}** points.'.format(bet, match.id, team_members, pot)
+				else: 
+					self.bot.log('[chatango] Unable to process bet. user:{} bet:{} Match:{} members:{}.'.format(username, bet, match.id, team_members))
+					return 'Unable to process your bet. Issue has been reported. Please try again later.'
+			except Exception as e:
+				self.bot.log('[chatango] Exception:bet_match: {} {} {} {}'.format(e, username, bet, contestant))
 		def rate_match(self, username, rating=0):
 			if not self.bot.current_match:
 				return 'No Current Match set for Rating.'
@@ -143,7 +205,7 @@ class Chatango:
 			if rating<1 or rating>5:
 				return 'Not a valid star rating. (1-5)'
 			try:
-				if self.bot.dbhandler.user_rate(self.verify(username)['id'], match_id, rating):
+				if self.bot.dbhandler.user_rate(self.verify(username).id, match_id, rating):
 					self.bot.log('[chatango] {} rated Match {} {} stars.'.format(username, match_id, rating))
 					return '{} Star Match rating received.'.format(rating)
 			except Exception as e:

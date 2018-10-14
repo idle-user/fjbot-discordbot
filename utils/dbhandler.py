@@ -4,6 +4,7 @@ import MySQLdb
 import random
 import string
 
+from .fjclasses import User
 from .fjclasses import Match
 from .credentials import mysql
 
@@ -23,9 +24,9 @@ class DBHandler:
 			if self.db and self.c:
 				try:
 					self.c.execute('SELECT 1')
+					self.db.commit()
 					return True
 				except:
-					print('failed')
 					pass
 			self.db = MySQLdb.connect(host=mysql['host'], db=mysql['db'], user=mysql['user'], passwd=mysql['secret'])
 			self.db.autocommit(True)
@@ -37,10 +38,25 @@ class DBHandler:
 			return False
 
 	# general
-	def user_info(self, user_id):
+	def user_by_id(self, user_id):
 		self.connect()
-		self.c.execute('SELECT id, username, date_created FROM user WHERE id=%s', (user_id,))
-		return self.c.fetchone()
+		self.c.execute('SELECT * FROM user WHERE id=%s', (user_id,))
+		return User(self.c.fetchone())
+
+	def user_by_discord(self, discord_id):
+		self.connect()
+		self.c.execute('SELECT * FROM user WHERE discord_id=%s', (discord_id,))
+		return User(self.c.fetchone())
+
+	def user_by_chatango(self, chatango_id):
+		self.connect()
+		self.c.execute('SELECT * FROM user WHERE chatango_id=%s', (chatango_id,))
+		return User(self.c.fetchone())
+
+	def user_by_twitter(self, twitter_id):
+		self.connect()
+		self.c.execute('SELECT * FROM user WHERE twitter_id=%s', (twitter_id,))
+		return User(self.c.fetchone())
 
 	def user_temp_password(self, user_id):
 		temp = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
@@ -48,36 +64,17 @@ class DBHandler:
 		self.c.execute('CALL user_set_temp_secret(%s, %s);', (user_id, temp))
 		return temp
 
-	def user_by_discord(self, discord_id):
-		self.connect()
-		self.c.execute(""" 
-			SELECT id, username, access, discord_id FROM user
-			WHERE discord_id=%s"""
-		,(discord_id,))
-		return self.c.fetchone()
-	
-	def user_by_chatango(self, chatango_id):
-		self.connect()
-		self.c.execute(""" 
-			SELECT id, username, chatango_id FROM user
-			WHERE chatango_id=%s"""
-		,(chatango_id,))
-		return self.c.fetchone()
-
-	def user_by_twitter(self, twitter_id):
-		self.connect()
-		self.c.execute(""" 
-			SELECT id, username, twitter_id FROM user
-			WHERE twitter_id=%s"""
-		,(chatango_id,))
-		return self.c.fetchone()
-
 	# chatango
 	def chatango_register(self, username):
 		self.connect()
-		self.c.execute('CALL user_chatango_register(%s, @oid)', (username,))
-		self.c.execute('SELECT @oid')
-		return self.c.fetchone()
+		try:
+			self.c.execute(''' 
+				INSERT INTO user (username, date_created, chatango_id, chatango_last_updated)
+				VALUES (%s, NOW(), %s, NOW())'''
+			, (username, username))
+			return self.user_by_chatango(username)
+		except:
+			return False
 
 	# discord
 	# always called first - handles reconnect if connection has gone away
@@ -89,30 +86,29 @@ class DBHandler:
 	def discord_command_add(self, command, response):
 		self.connect()
 		try:
-			self.c.execute("""
+			self.c.execute(""" 
 				INSERT INTO discord_command (prefix, response)
 				VALUES (%s, %s)"""
 			,(command, response))
 			return True
 		except:
 			return False
-	
+
 	def discord_command_update(self, command, response):
 		self.connect()
 		try:
-			self.c.execute("""
+			self.c.execute(""" 
 				UPDATE discord_command SET response=%s
 				WHERE prefix=%s"""
 			,(response, command))
 			return True
 		except:
 			return False
-	
-	
+
 	def discord_command_cnt(self, id):
 		self.connect()
 		self.c.execute('UPDATE discord_command SET cnt=cnt+1 WHERE id=%s', (id,))
-	
+
 	def misc_commands(self):
 		self.connect()
 		self.c.execute(""" 
@@ -127,20 +123,20 @@ class DBHandler:
 		self.connect()
 		self.c.execute('INSERT INTO event (date, name) VALUES (%s, %s)',(date,name))
 		return self.c.fetchone()
-	
+
 	def next_event(self):
 		self.connect()
 		self.c.execute(""" 
-			SELECT 
+			SELECT
 				date, start_time, name, ppv,
 				TIMESTAMP(date, start_time) as dt
 			FROM event
 			WHERE TIMESTAMP(date, start_time) > NOW()
 			ORDER BY TIMESTAMP(date, start_time)
 			LIMIT 1"""
-		)	
+		)
 		return self.c.fetchone()
-	
+
 	def events(self):
 		self.connect()
 		self.c.execute(""" 
@@ -148,9 +144,9 @@ class DBHandler:
 			FROM event
 			WHERE date>=CURDATE() AND ppv=1
 			ORDER BY date LIMIT 10"""
-		)	
+		)
 		return self.c.fetchall()
-	
+
 	def user_stats(self, user_id):
 		self.connect()
 		self.c.execute('SELECT * FROM view_user_stats WHERE id=%s', (user_id,))
@@ -160,25 +156,25 @@ class DBHandler:
 		self.connect()
 		self.c.execute('SELECT * FROM superstar LEFT JOIN superstar_social ON superstar_id=superstar.id WHERE name LIKE %s', (superstar,))
 		return self.c.fetchone()
-	
+
 	def superstar_twitter(self):
 		self.connect()
 		self.c.execute('SELECT * FROM superstar_social JOIN superstar ON superstar.id=superstar_id')
 		return self.c.fetchall()
-	
+
 	def superstar_update_twitter_id(self, superstar_id, twitter_id):
 		self.connect()
 		return self.c.execute('UPDATE superstar_social SET twitter_id=%s WHERE superstar_id=%s', (twitter_id, superstar_id))
-			
+
 	def superstar_update_twitter_log(self, superstar_id, follow):
 		self.connect()
 		return self.c.execute('UPDATE superstar_social SET twitter_discord_log=%s WHERE superstar_id=%s', (follow, superstar_id))
-			
+
 	def superstar_birthdays(self):
 		self.connect()
 		self.c.execute('SELECT id,name,dob,twitter_name FROM superstar LEFT JOIN superstar_social ON superstar.id=superstar_id WHERE brand_id<5 AND MONTH(dob)=MONTH(NOW()) ORDER BY DAYOFYEAR(dob)')
 		return self.c.fetchall()
-	
+
 	def superstars(self):
 		self.connect()
 		self.c.execute('SELECT * FROM superstar ORDER BY name')
@@ -188,7 +184,7 @@ class DBHandler:
 		self.connect()
 		self.c.execute('SELECT * FROM superstar LEFT JOIN superstar_social ON superstar_id=superstar.id WHERE name LIKE %s ORDER BY name', (name,))
 		return self.c.fetchall()
-	
+
 	def leaderboard(self):
 		self.connect()
 		self.c.execute('SELECT * FROM view_user_stats WHERE s2_wins+s2_losses>0 ORDER BY s2_total_points DESC LIMIT 10')
@@ -198,11 +194,11 @@ class DBHandler:
 		self.connect()
 		self.c.execute('SELECT * FROM view_user_stats WHERE s1_wins+s1_losses>0 ORDER BY s1_total_points DESC LIMIT 10')
 		return self.c.fetchall()
-	
+
 	def titles(self):
 		self.connect()
 		self.c.execute(""" 
-			SELECT 
+			SELECT
 				title.name AS 'title'
 				,GROUP_CONCAT(superstar.name SEPARATOR ' & ') AS 'superstar'
 			FROM title
@@ -211,11 +207,11 @@ class DBHandler:
 			ORDER BY title.id"""
 		)
 		return self.c.fetchall()
-		
+
 	def latest_match(self):
 		self.connect()
 		self.c.execute(""" 
-			SELECT m.id 
+			SELECT m.id
 			FROM `match` m
 			JOIN event ON event.id=m.event_id
 			WHERE event.date=CURDATE() 
@@ -227,8 +223,8 @@ class DBHandler:
 	def match_teams(self, match_id):
 		self.connect()
 		self.c.execute(""" 
-			SELECT mc.team, mc.bet_multiplier ,GROUP_CONCAT(s.name) AS members 
-			FROM match_contestant mc 
+			SELECT mc.team, mc.bet_multiplier ,GROUP_CONCAT(s.name) AS members
+			FROM match_contestant mc
 			JOIN superstar s ON s.id=mc.superstar_id
 			WHERE mc.match_id=%s
 			GROUP BY team
@@ -249,10 +245,10 @@ class DBHandler:
 			for row in rows:
 				m = Match(row)
 				m.set_teams(self.match_teams(m.id))
-				ms.append(m)	
+				ms.append(m)
 			return ms
 		return False
-	
+
 	def match(self, match_id):
 		self.connect()
 		self.c.execute(""" 
@@ -266,7 +262,7 @@ class DBHandler:
 			m.set_teams(self.match_teams(m.id))
 			return m
 		return False
-	
+
 	def user_bets(self, user_id):
 		self.connect()
 		self.c.execute(""" 
@@ -276,22 +272,22 @@ class DBHandler:
 				,GROUP_CONCAT(s.name) AS 'contestants'
 				,ub.points
 				,ubc.potential_cut_pct
-				,ubc.potential_cut_points 
-			FROM user_bet ub 
+				,ubc.potential_cut_points
+			FROM user_bet ub
 			JOIN user_bet_calculations ubc ON ubc.match_id=ub.match_id and ubc.user_id=%s
-			JOIN match_contestant mc ON mc.match_id=ub.match_id AND ub.team=mc.team 
-			JOIN superstar s on s.id=mc.superstar_id 
-			JOIN `match` m ON m.id=ub.match_id 
+			JOIN match_contestant mc ON mc.match_id=ub.match_id AND ub.team=mc.team
+			JOIN superstar s on s.id=mc.superstar_id
+			JOIN `match` m ON m.id=ub.match_id
 			WHERE m.team_won=0 and ub.user_id=%s
 			GROUP BY m.id"""
 		, (user_id, user_id))
 		return self.c.fetchall()
-	
+
 	def user_bet_check(self, user_id, match_id):
 		self.connect()
 		self.c.execute('SELECT * FROM user_bet WHERE user_id=%s AND match_id=%s', (user_id, match_id))
 		return self.c.fetchone()
-	
+
 	def user_bet(self, user_id, match_id, team, points):
 		self.connect()
 		try:
@@ -302,7 +298,7 @@ class DBHandler:
 			return True
 		except:
 			return False
-	
+
 	def user_rate(self, user_id, match_id, rate):
 		self.connect()
 		try:

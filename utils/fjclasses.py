@@ -1,3 +1,13 @@
+class User:
+	def __init__(self, row):
+		self.id = row['id']
+		self.username = row['username']
+		self.access = row['access']
+		self.last_login = row['last_login']
+		self.discord_id = row['discord_id']
+		self.chatango_id = row['chatango_id']
+		self.twitter_id = row['twitter_id']
+
 class Match:
 	def __init__(self, row):
 		self.id = row['id']
@@ -35,7 +45,6 @@ class Match:
 			self.teams.append((r['team'],r['bet_multiplier'],r['members']))
 	
 	def contains_contestant(self, name):
-		print(name,'-',self.contestants) 
 		return name.lower() in self.contestants.lower()
 	
 	def contestants_by_team(self, team_id):

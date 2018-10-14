@@ -33,7 +33,7 @@ class Member:
 	
 	@commands.command()
 	async def invite(self):
-		await self.bot.say('`TBD`')
+		await self.bot.say(credentials.discord['invite_link'])
 
 	@commands.command(name='role', aliases=['roles', 'toprole'], pass_context=True)
 	async def member_roles(self, ctx):

@@ -43,7 +43,7 @@ class Matches:
 	async def start_match_rating(self, ctx, match_id:str=None):
 		owner = ctx.message.server.get_member(credentials.discord['owner_id'])
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
-		if user['access']<2:
+		if user.access<2:
 			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))	
 			return
 		
@@ -78,7 +78,7 @@ class Matches:
 	@commands.command(name='rateend', pass_context=True)
 	async def end_match_rating(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
-		if user['access']<2:
+		if user.access<2:
 			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))	
 			return
 		if self.bot.current_match:
@@ -101,7 +101,7 @@ class Matches:
 	async def verify_user_account(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user:
-			await self.bot.say('Your Discord is successfully linked to `{}` on http://matches.fancyjesse.com'.format(user['username']))
+			await self.bot.say('Your Discord is successfully linked to `{}` on http://matches.fancyjesse.com'.format(user.username))
 		else:
 			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
 
@@ -109,10 +109,11 @@ class Matches:
 	async def user_page(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user:
-			await self.bot.say("{}'s Matches Page\nhttps://fancyjesse.com/projects/matches/user?user_id={}".format(ctx.message.author.mention, user['id']))
+			await self.bot.say("{}'s Matches Page\nhttps://fancyjesse.com/projects/matches/user?user_id={}".format(ctx.message.author.mention, user.id))
 		else:
 			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
 
+	''' 
 	@commands.command(name='addevents', aliases=['addweeklyevents'], pass_context=True, hidden=True)
 	@checks.is_mod()
 	async def insert_weekly_events(self, ctx):
@@ -137,6 +138,7 @@ class Matches:
 			d = d + datetime.timedelta(1)
 		if add_cnt == 0:
 			await self.bot.say('No events to be added this month.')
+	'''
 
 	@commands.command(name='events', aliases=['ppv','ppvs'])
 	async def upcomming_events(self):
@@ -228,7 +230,7 @@ class Matches:
 	async def user_stats(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user:
-			user = self.dbhandler.user_stats(user['id'])
+			user = self.dbhandler.user_stats(user.id)
 			try:
 				ratio = '{:.3f}'.format(user['s2_wins']/user['s2_losses'])
 			except:
@@ -241,7 +243,7 @@ class Matches:
 	async def user_stats_season1(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user:
-			user = self.dbhandler.user_stats(user['id'])
+			user = self.dbhandler.user_stats(user.id)
 			try:
 				ratio = '{:.3f}'.format(user['s1_wins']/user['s1_losses'])
 			except:
@@ -254,7 +256,7 @@ class Matches:
 	async def user_points(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user:
-			user = self.dbhandler.user_stats(user['id'])
+			user = self.dbhandler.user_stats(user.id)
 			await self.bot.say('```Username: {}\nTotal Points: {:,}\nAvailable Points: {:,}```'.format(user['username'], user['s2_total_points'], user['s2_available_points']))
 		else:
 			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
@@ -263,7 +265,7 @@ class Matches:
 	async def user_current_bets(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user:
-			bets = self.dbhandler.user_bets(user['id'])
+			bets = self.dbhandler.user_bets(user.id)
 			if bets:
 				await self.bot.say("{}'s Current Bets\n```{}```".format(ctx.message.author.mention, '\n'.join(['Match {}\n  {:,} points on {}\n  Potential Pot Winnings: {:,} ({}%)'.format(bet['match_id'], bet['points'], bet['contestants'], bet['potential_cut_points'], bet['potential_cut_pct']*100) for bet in bets])))
 			else:
@@ -308,19 +310,20 @@ class Matches:
 			try:
 				if len(args) == 2:
 					bet = int(args[0])
-					superstar = args[1]
-					match_id = 0
+					superstar = ' '.join(args[1:])
+					match_id = False
 				else:
 					bet = int(args[0])
 					match_id = int(args[1])
 					team_id = int(args[2])
+					superstar = False
 			except:		
 				await self.bot.say('Invalid `!bet` format.\n`!bet [bet_amount] [contestant]`\n`!bet [bet_amount] [match_id] [team]`')
 				return
 			if bet<1:
 				await self.bot.say('Invalid bet. Try again, {}.'.format(ctx.message.author.mention))
 				return
-			user = self.dbhandler.user_stats(user['id'])
+			user = self.dbhandler.user_stats(user.id)
 			if user['s2_available_points'] < bet:
 				await self.bot.say('Insufficient points available ({0}). Try again, {1}.'.format(user['s2_available_points'], ctx.message.author.mention))
 				return
@@ -333,12 +336,10 @@ class Matches:
 				if match_id and m.id==match_id:
 					match = m
 					break
-				elif not match_id and m.contains_contestant(superstar):
+				elif superstar and m.contains_contestant(superstar):
 					match = m
 					team_id = m.team_by_contestant(superstar)
 					break
-				else:
-					print('did not find {} in match {}'.format(superstar, m.id))
 			if not match:
 				await self.bot.say('Match not found. Try again, {}.\nEnter `!matches` to view current matches.'.format(ctx.message.author.mention))
 				return
@@ -394,7 +395,7 @@ class Matches:
 				if (datetime.datetime.today().date() - m.date).days > 2:
 					await self.bot.say('Match rating unavailable - Past 48 hours of event date, {}.'.format(ctx.message.author.mention))
 				else:
-					if not self.dbhandler.user_rate(user['id'], m.id, rate):
+					if not self.dbhandler.user_rate(user.id, m.id, rate):
 						await self.bot.say('Something went wrong. Try again later, {}.'.format(ctx.message.author.mention))
 						return
 					if rate:

@@ -12,19 +12,19 @@ class Admin:
 		self.bot = bot
 
 	@commands.command(name='kick', pass_context=True, hidden=True)
-	@checks.is_owner()
+	@checks.is_mod()
 	async def kick_member(self, ctx, member:discord.Member, reason:str=None):
 		await self.bot.kick(member)
 		await self.bot.say('```{} has been kicked{}```'.format(member, ' for {}.'.format(reason) if reason else '.'))
 
 	@commands.command(name='ban', hidden=True)
-	@checks.is_owner()
+	@checks.is_mod()
 	async def ban_member(self, member:discord.Member, reason:str=None):
 		await self.bot.ban(member)
 		await self.bot.say('```{} has been banned{}```'.format(member, ' for {}.'.format(reason) if reason else '.'))
 
 	@commands.command(name='clear', pass_context=True, hidden=True)
-	@checks.is_owner()
+	@checks.is_mod()
 	async def clear_log(self, ctx, count:int=1):
 		msgs = []
 		async for msg in self.bot.logs_from(ctx.message.channel, limit=count+1):

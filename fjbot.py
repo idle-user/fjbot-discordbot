@@ -25,9 +25,19 @@ def log(message):
 	print(message)
 	bot.loop.create_task(discord_log(message))
 
+def message_owner(message):
+	print(message)
+	bot.loop.create_task(pm_owner(message))
+
 async def discord_log(message):
 	await bot.wait_until_ready()
 	await bot.send_message(channel_log, '```{}```'.format(message))
+
+async def pm_owner(message):
+	server = bot.get_server(credentials.discord['server_id'])
+	owner = server.get_member(credentials.discord['owner_id'])
+	if owner:
+		await bot.send_message(owner, message)
 
 @bot.event
 async def on_command_error(error, ctx):
@@ -35,9 +45,6 @@ async def on_command_error(error, ctx):
 		return
 	else:
 		bot.log('{}\n[{}] {}: {}'.format(error, ctx.message.channel, ctx.message.author, ctx.message.content))
-		#owner = ctx.message.server.get_member(credentials.discord['owner_id'])
-		#if owner:
-			#await bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format(error, ctx.message.channel, ctx.message.author, ctx.message.content))
 		#raise error
 
 @bot.event
@@ -100,6 +107,7 @@ if __name__ == '__main__':
 	try:
 		bot.dbhandler = DBHandler()
 		bot.log = log
+		bot.message_owner = message_owner
 		for extension in startup_extensions:
 			try:
 				bot.load_extension(extension)
