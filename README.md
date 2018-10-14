@@ -33,8 +33,19 @@ TODO
 
 Release History
 ------------------------------------------------------------------------
+2018.10.14
+* Added User class
+* Updated COGs to use new User class
+* Added direct PM to Discord Server owner function
+* Updated admin COG checks
+* Updated ch library with alterations (bugs found)
+* Updated chatango COG to include match listings and betting
+* Modifications to dbhandler to explicitly call queries
+* Updated credentials to include Discord invite link
+* Text fixes
+
 2018.09.06
-* Database redesign (yet to be included in repository)
+* Database redesign (to be included in repository)
 * Various database optimization within dbhandler
 * Created Class module for readability
 * Removed \_\_obosolete__ directory
