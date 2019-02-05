@@ -33,6 +33,18 @@ TODO
 
 Release History
 ------------------------------------------------------------------------
+2019.02.05
+* Added Voice COG (plays YouTube audio)
+* Role checks are based only on IDs now
+* Updated credential sample to include only IDs
+* Added function for quick login for registered users
+* Added a Discord Channel for Logging
+* Added logging calls within project
+* Twitter COG updated (functionality limited by latest Twitter API update)
+* Updated query calls based on database table updates
+* Various new functions added
+* Text fixes
+
 2018.10.14
 * Added User class
 * Updated COGs to use new User class

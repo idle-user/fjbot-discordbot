@@ -13,7 +13,7 @@ def is_owner_check(ctx):
 
 def is_mod_check(ctx):
 	for role in ctx.message.author.roles:
-		if role.name.replace('@','') in credentials.discord['role']['mod']:
+		if role.id in credentials.discord['role']['mod']:
 			return True
 	return False
 

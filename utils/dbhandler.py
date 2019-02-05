@@ -58,6 +58,12 @@ class DBHandler:
 		self.c.execute('SELECT * FROM user WHERE twitter_id=%s', (twitter_id,))
 		return User(self.c.fetchone())
 
+	def user_login_token(self, user_id):
+		token = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
+		self.connect()
+		self.c.execute('CALL user_set_login_token(%s, %s);', (user_id, token))
+		return token
+
 	def user_temp_password(self, user_id):
 		temp = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
 		self.connect()
@@ -127,12 +133,10 @@ class DBHandler:
 	def next_event(self):
 		self.connect()
 		self.c.execute(""" 
-			SELECT
-				date, start_time, name, ppv,
-				TIMESTAMP(date, start_time) as dt
+			SELECT date_time, name, ppv
 			FROM event
-			WHERE TIMESTAMP(date, start_time) > NOW()
-			ORDER BY TIMESTAMP(date, start_time)
+			WHERE date_time > NOW()
+			ORDER BY date_time
 			LIMIT 1"""
 		)
 		return self.c.fetchone()
@@ -140,10 +144,10 @@ class DBHandler:
 	def events(self):
 		self.connect()
 		self.c.execute(""" 
-			SELECT date, name
+			SELECT date_time, name
 			FROM event
-			WHERE date>=CURDATE() AND ppv=1
-			ORDER BY date LIMIT 10"""
+			WHERE date_time>=NOW() AND ppv=1
+			ORDER BY date_time LIMIT 10"""
 		)
 		return self.c.fetchall()
 
@@ -214,8 +218,8 @@ class DBHandler:
 			SELECT m.id
 			FROM `match` m
 			JOIN event ON event.id=m.event_id
-			WHERE event.date=CURDATE() 
-			ORDER BY m.last_update_dt DESC
+			WHERE DATE(event.date_time)=CURDATE() 
+			ORDER BY m.last_updated DESC
 			LIMIT 1"""
 		)
 		return self.c.fetchone()

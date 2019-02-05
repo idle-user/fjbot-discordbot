@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 
 from discord.ext import commands
 import discord
@@ -19,22 +20,33 @@ class Twitter:
 		self.twitter = tweepy.API(self.auth)
 		self.bot.log('[{}] Twitter {}: START'.format(datetime.datetime.now(), self.twitter.me().screen_name))
 		self.bot.loop.create_task(self.superstar_birthday_task())
-		self.start_stream()
+		self.start_log_stream()
+		#self.start_dm_stream()
+		#self.dm_test()
 
 	def __unload(self):
-		self.stream.running = False
+		if self.logstream:
+			self.logstream.running = False
+		if self.dmstream:
+			self.dmstream.running = False
 
-	class StreamListener(tweepy.StreamListener):
+	class LogStreamListener(tweepy.StreamListener):
 		def __init__(self, myapi, ids):
 			self.myapi = myapi
 			self.ids = ids
-			super(Twitter.StreamListener, self).__init__()
+			super(Twitter.LogStreamListener, self).__init__()
 		def on_error(self, status_code):
 			# self.bot.log('Twitter.SuperstarListener.on_error: {}'.format(status_code))
 			if status_code == 420:
 				return False
+		def on_data(self, raw_data):
+			data = json.loads(raw_data)
+			if 'message_create' in data or '105715916' in data:
+				print('data: {}'.format(data['user']['screen_name']))
+				return False
 		def on_status(self, status):
-			# print('TWEET: {}: {}'.format(status.user.screen_name, status.text))
+			print('TWEET: {}: {}'.format(status.user.screen_name, status.text))
+			return
 			if not (status.retweeted or 'RT @' in status.text) and status.user.id_str in self.ids:
 				# tweet user_id in list and not a retweet
 				if not status.in_reply_to_user_id or self.myapi.twitter.get_user(status.in_reply_to_user_id_str).verified:
@@ -42,18 +54,58 @@ class Twitter:
 					tweet = 'https://twitter.com/statuses/{}'.format(status.id)
 					self.myapi.bot.loop.create_task(self.myapi.tweet_log(tweet))
 		def on_direct_message(self, status):
-			self.myapi.send_direct_message(screen_name=status.author.screen_name, text='test')
+			print('on_dm')
+			#self.myapi.twitter.send_direct_message(screen_name=status.author.screen_name, text='test')
 
-	def start_stream(self):
+	class DMStreamListener(tweepy.StreamListener):
+		def __init__(self, myapi):
+			self.myapi = myapi
+			super(Twitter.DMStreamListener, self).__init__()
+		def on_error(self, status_code):
+			print(status_code)
+			if status_code == 420:
+				return False
+		def on_data(self, status):
+			print('data:',status)
+		def on_direct_message(self, status):
+			print('DM')
+			#user = self.api.get_user(self.destname)
+			#self.myapi.live_dm(user.id, 'test')
+
+	def start_log_stream(self):
 		log_superstars = [s for s in self.bot.dbhandler.superstar_twitter() if s['twitter_discord_log']]
 		self.bot.log('Twitter Logging: [{}]'.format(', '.join([s['name'] for s in log_superstars])))
 		log_ids = [s['twitter_id'] for s in log_superstars]
 		log_ids.append('7517222') # @WWE
 		log_ids.append('1357803824') # @totaldivaseps
+		log_ids.append('105715916') # @fancyjesse
 		log_ids = list(filter(None, log_ids))
-		self.bot.log('Starting Twitter Stream ...')
-		self.stream = tweepy.Stream(self.auth, self.StreamListener(self, log_ids))
-		self.stream.filter(follow=log_ids, async=True)
+		self.bot.log('Starting Twitter Log Stream ...')
+		self.logstream = tweepy.Stream(self.auth, self.LogStreamListener(self, log_ids))
+		self.logstream.filter(follow=log_ids, is_async=True)
+
+	def start_dm_stream(self):
+		self.bot.log('Starting Twitter DM Stream ...')
+		self.dmstream = tweepy.Stream(self.auth, self.DMStreamListener(self))
+		#self.dmstream.filter(follow=['105715916',], async=True)
+		# self.dmstream.userstream(async=True) #depricated - use home_timeline, user_timeline
+
+	def dm_test(self):
+		next_cursor = self.twitter.direct_messages(count=1)[0].next_cursor
+		while next_cursor is not None:
+			if next_cursor is not None:
+				direct_messages = self.twitter.direct_messages(cursor=next_cursor, count=50)
+			else:
+				direct_messages = connection.direct_messages(count=50)
+			try:
+				next_cursor = direct_messages[0].next_cursor
+			except:
+				next_cursor = None
+			print(len(direct_messages))
+			for dm in direct_messages:
+				for event in dm.events:
+					print(event.id)
+		print('End dm_test')
 
 	def latest_tweets(self, twitter_id, count=1):
 		return self.twitter.user_timeline(id=twitter_id, count=count, include_rts=False)
@@ -62,6 +114,33 @@ class Twitter:
 		status = self.twitter.update_status(msg)
 		link = 'https://twitter.com/statuses/{}'.format(status.id)
 		return link
+
+	def live_dm(self, recipient_id, message):
+		self.twitter.send_direct_message(type='message_create', text=message, recipient_id=recipient_id)
+
+	""" 
+	def live_dm2(self, recipient_id, msg):
+		event = {
+			'event': {
+				'type': 'message_create',
+				'message_create': {
+						'target': {
+						'recipient_id': recipient_id
+					},
+					'message_data': {
+						'text': msg
+					}
+				}
+			}
+		}
+		self.twitter.send_direct_message_new(event)
+	"""
+
+	@commands.command(name='tdm', pass_context=True)
+	@checks.is_owner()
+	async def send_tdm(self, ctx, msg):
+		id = '105715916'
+		self.live_dm(recipient_id=id, message=msg)
 
 	async def tweet_log(self, message):
 		await self.bot.send_message(self.channel_twitter, message)
@@ -83,9 +162,9 @@ class Twitter:
 			await asyncio.sleep(timer)
 			if events:
 				tweet_link = self.live_tweet('Happy Birthday, {}! #BDAY\n- Sent from everyone at https://discord.gg/Q9mX5hQ #discord #fjbot'.format(', '.join(e['twitter_name'] for e in events)))
-				await self.bot.send_message(self.channel_general, tweet_link) 
+				await self.bot.send_message(self.channel_twitter, tweet_link)
 		self.bot.log('END birthday_schedule_task')
-		
+
 	@commands.command(name='sendtweet', pass_context=True)
 	@checks.is_owner()
 	async def send_tweet(self, ctx, *, message:str):
@@ -93,10 +172,10 @@ class Twitter:
 		confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
 		if confirm and confirm.content.upper()=='Y':
 			tweet_link = self.live_tweet(message)
-			await self.bot.say(tweet_link)
+			await self.bot.send_message(self.channel_twitter, tweet_link)
 		else:
 			await self.bot.say('`Tweet cancelled.`')
-	
+
 	@commands.command(name='viewtweets', aliases=['tweets'], pass_context=True)
 	async def superstar_tweets(self, ctx, *args):
 		try:
@@ -104,11 +183,11 @@ class Twitter:
 			count = int(args[1]) if len(args)>1 else 1
 			count = 1 if count<1 else count
 			count = 5 if count>5 else count
-		except:		
+		except:
 			await self.bot.say('Invalid `!tweets` format.\n`!tweets [superstar] [count]`')
 			return
 		bio = self.bot.dbhandler.superstar_bio('%'+superstar.replace(' ','%')+'%')
-		id = bio['twitter_id'] if bio else '@{}'.format(superstar)	
+		id = bio['twitter_id'] if bio else '@{}'.format(superstar)
 		if id:
 			tweets = self.latest_tweets(id, count)
 			for tweet in tweets:

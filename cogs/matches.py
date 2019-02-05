@@ -26,7 +26,7 @@ class Matches:
 		while not self.bot.is_closed:
 			event = self.dbhandler.next_event()
 			dt = datetime.datetime.now()
-			timer = (event['dt'] - dt).total_seconds()
+			timer = (event['date_time'] - dt).total_seconds()
 			self.bot.log('showtime_schedule_task: sleep_until:{}, event:{}'.format(dt+datetime.timedelta(seconds=timer), event['name']))
 			await asyncio.sleep(timer)
 			if 'RAW' in event['name']:
@@ -38,25 +38,25 @@ class Matches:
 			else:
 				self.bot.log('{} {}'.format(event['name'], event['dt']))
 		self.bot.log('END showtime_schedule_task')
-		
+
 	@commands.command(name='ratestart', pass_context=True)
 	async def start_match_rating(self, ctx, match_id:str=None):
 		owner = ctx.message.server.get_member(credentials.discord['owner_id'])
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user.access<2:
-			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))	
+			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))
 			return
-		
+
 		try:
 			if not match_id:
-				match_id = self.dbhandler.latest_match()['id']		
+				match_id = self.dbhandler.latest_match()['id']
 			match_id = int(match_id)
 		except:
-			await self.bot.say('Invalid `!startrating` format.\n`!startrating [match_id]`')
+			await self.bot.say('Invalid `!ratestart` format.\n`!ratestart [match_id]`')
 			return
-		
+
 		m = self.dbhandler.match(match_id)
-		
+
 		if m:
 			await self.bot.say('`Start Rating on [{} | {}]? [Y/N]`'.format(m.match_type, m.contestants))
 			confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
@@ -71,7 +71,7 @@ class Matches:
 					for ch_room in credentials.chatango['rooms']:
 						chatango.chbot.sendRoomMessage(ch_room, msg)
 				else:
-					await self.bot.say('`RateStart cancelled.`')
+					await self.bot.say('`ratestart cancelled.`')
 		else:
 			await self.bot.say('`Match not found.`')
 
@@ -79,7 +79,7 @@ class Matches:
 	async def end_match_rating(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user.access<2:
-			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))	
+			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))
 			return
 		if self.bot.current_match:
 			match_id = self.bot.current_match.id
@@ -91,17 +91,31 @@ class Matches:
 				chatango.chbot.sendRoomMessage(ch_room, msg)
 		else:
 			await self.bot.say('`No current match set.`')
-		
+
 	@commands.command(name='id', pass_context=True)
 	async def send_userid(self, ctx):
+		await self.bot.delete_message(ctx.message)
 		await self.bot.send_message(ctx.message.author, 'Your discord_id is: `{}`\nLink it to your http://matches.fancyjesse.com profile.'.format(ctx.message.author.id))
-		await self.bot.say('{}, your ID has been DMed. Please visit http://matches.fancyjesse.com to link your account.'.format(ctx.message.author.mention))
 
-	@commands.command(name='verify', pass_context=True)
+	@commands.command(name='verify', aliases=['register'], pass_context=True)
 	async def verify_user_account(self, ctx):
 		user = self.dbhandler.user_by_discord(ctx.message.author.id)
 		if user:
 			await self.bot.say('Your Discord is successfully linked to `{}` on http://matches.fancyjesse.com'.format(user.username))
+		else:
+			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
+
+	@commands.command(name='login', pass_context=True)
+	async def user_quick_login(self, ctx):
+		try:
+			await self.bot.delete_message(ctx.message)
+		except:
+			pass
+		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+		if user:
+			token = self.bot.dbhandler.user_login_token(user.id)
+			link = 'https://fancyjesse.com/projects/matches?uid={}&token={}'.format(user.id, token)
+			await self.bot.send_message(ctx.message.author, 'Quick login link for you! <{}> (link expires in 5 minutes)'.format(link))
 		else:
 			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
 
@@ -113,37 +127,10 @@ class Matches:
 		else:
 			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
 
-	''' 
-	@commands.command(name='addevents', aliases=['addweeklyevents'], pass_context=True, hidden=True)
-	@checks.is_mod()
-	async def insert_weekly_events(self, ctx):
-		d = datetime.date.today()
-		m = d.month
-		add_cnt = 0
-		while d.month == m:
-			if d.weekday() == 0:
-				name = 'RAW'
-				if self.dbhandler.add_event(d, name):
-					add_cnt = add_cnt + 1
-					msg = '{} {} added.'.format(name, d)
-					self.bot.log('`{}`'.format(msg))
-					await self.bot.say(msg)
-			elif d.weekday() == 1:
-				name = 'SmackDown LIVE'
-				if self.dbhandler.add_event(d, name):
-					add_cnt = add_cnt + 1
-					msg = '`{} {}` added.'.format(name, d)
-					self.bot.log('`{}`'.format(msg))
-					await self.bot.say(msg)
-			d = d + datetime.timedelta(1)
-		if add_cnt == 0:
-			await self.bot.say('No events to be added this month.')
-	'''
-
 	@commands.command(name='events', aliases=['ppv','ppvs'])
 	async def upcomming_events(self):
 		ppvs = self.dbhandler.events()
-		await self.bot.say('```Upcoming PPVs\n-------------\n{}```'.format('\n'.join(['{} - {}'.format(e['date'],e['name']) for e in ppvs])))
+		await self.bot.say('```Upcoming PPVs (PT)\n-------------\n{}```'.format('\n'.join(['{} - {}'.format(e['date_time'],e['name']) for e in ppvs])))
 
 	@commands.command(name='bio', pass_context=True)
 	async def superstar_bio(self, ctx, *, content:str):
@@ -158,7 +145,7 @@ class Matches:
 			await self.bot.say("Unable to find Superstars matching '{}'".format(superstar))
 			return
 		else:
-			if len(superstars)>1: 
+			if len(superstars)>1:
 				msg = 'Select Superstar from List ...\n```'
 				for i,e in enumerate(superstars):
 					msg = msg + '{}. {}\n'.format(i+1, e['name'])
@@ -186,7 +173,7 @@ class Matches:
 			if bio['dob']:
 				today = datetime.datetime.now().date()
 				age = today.year - bio['dob'].year - ((today.month, today.day) < (bio['dob'].month, bio['dob'].day))
-				dob = 'DOB: {} ({})\n'.format(bio['dob'], age)		
+				dob = 'DOB: {} ({})\n'.format(bio['dob'], age)
 			msg = '{}\n```{}\n-------------\n{}{}{}{}{}\n\n{}```'.format(bio['official_image_url'], name, height, weight, dob, hometown, signature_move, bio['official_bio'])
 			if len(msg)>2000:
 				bio['official_bio'] = bio['official_bio'][0:len(bio['official_bio'])-(len(msg)-1995)]+' ...'
@@ -222,9 +209,16 @@ class Matches:
 		ts = ['{}\n{}'.format(t['title'], t['superstar']) for t in ts]
 		await self.bot.say('```Current Champions\n----------\n{}```'.format('\n\n'.join(ts)))
 
-	@commands.command()
-	async def rumble(self):
+	@commands.command(pass_context=True)
+	async def rumble(self, ctx):
 		await self.bot.say('Join the Rumble at: https://fancyjesse.com/projects/matches/royalrumble')
+		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+		if user:
+			token = self.bot.dbhandler.user_login_token(user.id)
+			link = 'https://fancyjesse.com/projects/matches/royalrumble?uid={}&token={}'.format(user.id, token)
+			await self.bot.send_message(ctx.message.author, 'Quick login link for you! <{}> (link expires in 5 minutes)'.format(link))
+		else:
+			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
 
 	@commands.command(name='stats', aliases=['mystats'], pass_context=True)
 	async def user_stats(self, ctx):
@@ -317,7 +311,7 @@ class Matches:
 					match_id = int(args[1])
 					team_id = int(args[2])
 					superstar = False
-			except:		
+			except:
 				await self.bot.say('Invalid `!bet` format.\n`!bet [bet_amount] [contestant]`\n`!bet [bet_amount] [match_id] [team]`')
 				return
 			if bet<1:
@@ -382,7 +376,7 @@ class Matches:
 				else:
 					match_id = int(args[0])
 					rate = float(args[1])
-			except:		
+			except:
 				await self.bot.say('Invalid `!rate` format.\n`!rate [match_id] [rating]`')
 				return
 			if rate<0 or rate>5:

@@ -14,7 +14,7 @@ class Member:
 	def __init__(self, bot):
 		self.bot = bot
 		self.dbhandler = DBHandler()
-		
+
 	@commands.command(name='commands', aliases=['misc'], pass_context=True)
 	async def misc_commands(self, ctx):
 		mcs = self.dbhandler.misc_commands()
@@ -22,15 +22,16 @@ class Member:
 
 	@commands.command(pass_context=True)
 	async def report(self, ctx):
-		owner = ctx.message.server.get_member(credentials.discord['owner_id'])
-		if owner:
-			await self.bot.send_message(owner, '```\nREPORT\n[#{0.channel}] {0.author}: {0.content}```'.format(ctx.message))
-			await self.bot.say('`Report sent.`')
-		
+		msg = '\nREPORT\n[#{0.channel}] {0.author}: {0.content}'.format(ctx.message)
+		self.bot.message_owner(msg)
+		self.bot.log(msg)
+		await self.bot.delete_message(ctx.message)
+		await self.bot.send_message(ctx.message.author, '`Report sent.`')
+
 	@commands.command(pass_context=True)
 	async def joined(self, member:discord.Member):
 		await self.self.bot.say('`{0.name} joined in {0.joined_at}`'.format(member))
-	
+
 	@commands.command()
 	async def invite(self):
 		await self.bot.say(credentials.discord['invite_link'])
@@ -67,27 +68,27 @@ class Member:
 				await self.bot.say("*{} slapped {}'s cheeks for trying to abuse a bot*".format(member.mention, ctx.message.author.mention))
 		#if not ctx.invoked_subcommand:
 			elif member == ctx.message.author:
-				await self.bot.say('{}, you god damn masochist.'.format(member.mention))		
+				await self.bot.say('{}, you god damn masochist.'.format(member.mention))
 			else:
 				await self.bot.say('*{} slapped {}{}*'.format(ctx.message.author.mention, member.mention, ' for {}'.format(reason) if reason else ''))
-	
+
 	#@slap_member.command(name'fjbot')
 	#async def _slap_bot(self, member):
 	#	await self.bot.say('slap.command subcommand')
-			
+
 	@commands.command(pass_context=True)
 	async def tickle(self, ctx, member:discord.Member=None, reason=None):
 		if member:
 			if member.bot:
 				await self.bot.say("*{} spread {}'s cheeks and tickled the inside for trying to touch bot*".format(member.mention, ctx.message.author.mention))
 			elif member == ctx.message.author:
-				await self.bot.say('{}, tickling yourself are you now? Pathetic..'.format(member.mention))		
+				await self.bot.say('{}, tickling yourself are you now? Pathetic..'.format(member.mention))
 			else:
 				await self.bot.say('*{} tickled {}{}*'.format(ctx.message.author.mention, member.mention, ' for {}'.format(reason) if reason else ''))
 
 	@commands.command(pass_context=True)
 	async def mock(self, ctx, member:discord.Member=None):
-		if member and member.bot: 
+		if member and member.bot:
 			await self.bot.say('No.')
 			return
 		async for msg in self.bot.logs_from(ctx.message.channel, limit=50):
@@ -96,6 +97,6 @@ class Member:
 				mock_msg = ''.join([l.upper() if random.getrandbits(1) else l.lower() for l in msg.content])
 				await self.bot.say('```"{}"\n    - {}```'.format(mock_msg, member))
 				break
-	
+
 def setup(bot):
 	bot.add_cog(Member(bot))

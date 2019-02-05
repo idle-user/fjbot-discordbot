@@ -31,11 +31,11 @@ class Admin:
 			msgs.append(msg)
 		await self.bot.delete_messages(msgs)
 
-	@commands.command(name='playing', hidden=True)
+	@commands.command(name='say', pass_context=True, hidden=True)
 	@checks.is_owner()
-	async def update_presence(self, game:str):
-		await self.bot.change_presence(game=discord.Game(name=game))
-		await self.bot.say('```Presence Updated.```')
+	async def repeat(self, ctx, *, msg:str):
+		await self.bot.delete_message(ctx.message)
+		await self.bot.say(msg)
 
 	@commands.command(name='spam', pass_context=True, hidden=True)
 	@checks.is_mod()
@@ -53,6 +53,21 @@ class Admin:
 			await self.bot.delete_messages(spam)
 		else:
 			await self.bot.delete_message(ctx.message)
+
+	""" 
+	@commands.command(name='nickname', pass_context=True, hidden=True)
+	@checks.is_owner()
+	async def change_nickname(self, ctx, *, nickname:str):
+		await self.bot.change_nickname(self.bot, nickname)
+	"""
+
+	@commands.command(name='status', pass_context=True, hidden=True)
+	@checks.is_owner()
+	async def change_status(self, ctx, *, game:str=None):
+		if game:
+			await self.bot.change_presence(game=discord.Game(name=game))
+		else:
+			await self.bot.change_presence(game=None)
 
 	@commands.command(name='addcommand', hidden=True)
 	@checks.is_mod()
@@ -75,13 +90,13 @@ class Admin:
 	@commands.command(name='mute', pass_context=True, hidden=True)
 	@checks.is_mod()
 	async def mute_member(self, ctx, member:discord.Member, reason:str=None):
-		await self.bot.add_roles(member, discord.utils.get(ctx.message.server.roles, name=credentials.discord['role']['muted']))
+		await self.bot.add_roles(member, discord.utils.get(ctx.message.server.roles, id=credentials.discord['role']['muted']))
 		await self.bot.say('```{} has been muted{}```'.format(member, ' for {}.'.format(reason) if reason else '.'))
 
 	@commands.command(name='unmute', pass_context=True, hidden=True)
 	@checks.is_mod()
 	async def unmute_member(self, ctx, member:discord.Member):
-		await self.bot.remove_roles(member, discord.utils.get(ctx.message.server.roles, name=credentials.discord['role']['muted']))
+		await self.bot.remove_roles(member, discord.utils.get(ctx.message.server.roles, id=credentials.discord['role']['muted']))
 		await self.bot.say('```{} has been unmuted.```'.format(member))
 
 def setup(bot):

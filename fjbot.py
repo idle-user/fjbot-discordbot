@@ -15,6 +15,7 @@ startup_extensions = [
 	'cogs.matches',
 	'cogs.twitter',
 	'cogs.chatango',
+	'cogs.voice',
 ]
 description='FJBot is a Discord Bot written in Python by FancyJesse'
 bot = discord.ext.commands.Bot(command_prefix='!', description=description)
@@ -50,7 +51,7 @@ async def on_command_error(error, ctx):
 @bot.event
 async def on_member_join(member):
 	channel_general = discord.Object(id=credentials.discord['channel']['general'])
-	role = discord.utils.get(member.server.roles, name=credentials.discord['role']['default'])
+	role = discord.utils.get(member.server.roles, id=credentials.discord['role']['default'])
 	await bot.add_roles(member, role)
 	await bot.send_message(channel_general, 'Welcome to {}, {}! Say hi!'.format(member.server.name, member.mention))
 
@@ -102,7 +103,7 @@ async def cog_reload(cog:str):
 		await bot.say('```{} reloaded```'.format(cog))
 	except (AttributeError, ImportError) as e:
 		await bot.say('```py\n{}: {}\n```'.format(type(e).__name__, str(e)))
-		
+
 if __name__ == '__main__':
 	try:
 		bot.dbhandler = DBHandler()

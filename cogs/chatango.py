@@ -42,9 +42,13 @@ class Chatango:
 			if user.name==self.name.lower():
 				return
 			args = message.body.lower().split(' ')
-			if  not args[0].startswith('!') or user.name.startswith('#'):
+			if not args[0].startswith('!') or user.name.startswith('#'):
 				return
-			if not self.verify(user.name) and not 'register' in args[0]:
+			elif '!discord' in args[0]:
+				msg = 'Discord Channel: {}'.format(credentials.discord['invite_link'])
+				self.sendUserMessage(user.name, msg)
+				self.bot.log('[chatango] sendUserMessage:{} - {}'.format(user.name, msg))
+			elif not self.verify(user.name) and not 'register' in args[0]:
 				msg = 'You must first register to use commands. Please use command `!register`.'
 				self.sendUserMessage(user.name, msg)
 				# room.message('@{}, {}'.format(user.name, msg))
@@ -52,9 +56,9 @@ class Chatango:
 				try:
 					self.command_handler(user.name, args[0], args[1:])
 				except Exception as e:
-					print('Exception:onMessage:', e, msg)
+					self.bot.log('[chatango] Exception:onMessage: {} {}'.format(e, msg))
 		def onPMMessage(self, pm, user, body):
-			print('onPMMessage:', user, body)
+			self.bot.log('[chatango] onPMMessage:{} - {}'.format(user, body))
 			args = body.split(' ')
 			if  not args[0].startswith('!') or user.name.startswith('#'):
 				return
@@ -64,11 +68,11 @@ class Chatango:
 				try:
 					self.command_handler(user.name, args[0], args[1:])
 				except Exception as e:
-					print('Exception: onPMMessge:',e)
+					self.bot.log('[chatango] Exception: onPMMessge:{}'.format(e))
 		def onFloodWarning(self, room):
-			print('onFloodWarning', room)
+			self.bot.log('[chatango] onFloodWarning:{}'.format(room))
 		def onFloodBan(self, room):
-			print('onFloodBan:',room)
+			self.bot.log('[chatango] onFloodBan:{}'.format(room))
 		def sendRoomMessage(self, room, msg):
 			room = self.getRoom(room)
 			if room:
@@ -76,7 +80,8 @@ class Chatango:
 				return True
 			return False
 		def sendUserMessage(self, username, msg):
-			print('sendUserMessage:',username, msg)
+			#msg = '{} (Discord Channel: {})'.format(msg, credentials.discord['invite_link'])
+			#self.bot.log('[chatango] sendUserMessage:{} - {}'.format(username, msg))
 			try:
 				if sys.getsizeof(msg) > 800:
 					tokens = msg.split()
@@ -87,12 +92,14 @@ class Chatango:
 				else:
 					self.pm.message(ch.User(username), msg)
 			except:
-				print('Failed to PM User:', username)
+				self.bot.log('[chatango] Failed to PM User:{}'.format(username))
 		def command_handler(self, username, cmd, args=[]):
 			cmd = cmd.lower()
 			res = False
 			if cmd == '!register':
 				res = self.register(username)
+			elif cmd == '!login':
+				res = self.login_link(username)
 			elif cmd == '!help':
 				res = '!resetpw - Get a temporary password for the website | !rate - Rate the current match | !mypoints - View your Match Points | !bet - Bet on a current match with your Match Points | !rumble - Get an entry number the Royal Rumble | !commands - get a list of other commands'
 			elif cmd == '!resetpw':
@@ -136,10 +143,16 @@ class Chatango:
 			data = self.bot.dbhandler.chatango_register(username)
 			if data:
 				self.bot.log('[chatango] {} has registered.'.format(username))
-				return '@{}, registration was successful! Remember to set a password for your account by using `!resetpw`. For other commands, use `!help`.'.format(username)
+				return '@{}, registration was successful! You can now use !login to get a quick login link for the website. Remember to set a password for your account by using `!resetpw`. For other commands, use `!help`.'.format(username)
 			else:
 				self.bot.log('[chatango] Failed to register: {}'.format(username))
 				return False
+		def login_link(self, username):
+			user = self.verify(username)
+			token = self.bot.dbhandler.user_login_token(user.id)
+			self.bot.log('[chatango] {} requested a login link.'.format(username))
+			return 'https://fancyjesse.com/projects/matches?uid={}&token={} (Link expires in 5 minutes)'.format(user.id, token)
+
 		def reset_pw(self, username):
 			user = self.verify(username)
 			temp = self.bot.dbhandler.user_temp_password(user.id)
@@ -189,7 +202,7 @@ class Chatango:
 					pot = self.bot.dbhandler.match(match.id).base_pot
 					self.bot.log('[chatango] {} placed a {:,} point bet on Match {} for {}.'.format(username, bet, match.id, team_members))
 					return 'You placed a `{:,}` point bet on Match {} for **{}**! Match Base Pot is now **{:,}** points.'.format(bet, match.id, team_members, pot)
-				else: 
+				else:
 					self.bot.log('[chatango] Unable to process bet. user:{} bet:{} Match:{} members:{}.'.format(username, bet, match.id, team_members))
 					return 'Unable to process your bet. Issue has been reported. Please try again later.'
 			except Exception as e:
@@ -211,14 +224,17 @@ class Chatango:
 			except Exception as e:
 				self.bot.log('[chatango] Exception:rate_match: {} {} {} {}', e, username, match_id, rating)
 		def royalrumble_entry(self, username, args=[]):
+			self.bot.log('[chatango] {} requested a Rumble login link.'.format(username))
+			user = self.verify(username)
 			if not args or args[0] != 'now':
-				return 'Login and visit the Event section on https://fancyjesse.com/projects/matches to join the Rumble! If you have not set a password, use !resetpw. Or skip everything and just get an entry nuumber using command "!rumble now"'
-			user_id = self.verify(username)['id']
-			res = self.bot.dbhandler.royalrumble_check(user_id)
+				token = self.bot.dbhandler.user_login_token(user.id)
+				return 'Visit the following link to join the Rumble! https://fancyjesse.com/projects/matches/royalrumble?uid={}&token={} (Link expires in 5 minutes)'.format(user.id, token)
+			res = self.bot.dbhandler.royalrumble_check(user.id)
 			if res:
 				return 'You have already entered as #{} on {}'.format(res['number'], res['dt_entered'])
-			res  = self.bot.dbhandler.royalrumble_entry(user_id)
+			res  = self.bot.dbhandler.royalrumble_entry(user.id)
 			if res:
+				self.bot.log('[chatango] {} Entered the Rumble as #{}.'.format(username, res))
 				res = 'You have entered the Royal Rumble as #{}'.format(res)
 			else:
 				res = 'Unable to join the Royal Rumble. Probably not open yet or you have already entered.'
@@ -234,7 +250,7 @@ class Chatango:
 		await self.bot.loop.run_in_executor(executor, t_stream.start)
 		await self.bot.loop.run_in_executor(executor, t_stream.join)
 		self.bot.log('END chatango_bot_task')
-	
+
 	async def wait_until_chbot_running(self, limit=30):
 		while limit > 0:
 			try:
@@ -260,9 +276,7 @@ class Chatango:
 
 	@commands.command(name='ch', pass_context=True)
 	@checks.is_owner()
-	async def send_message(self, ctx, message):
-		if message == '!ad':
-			message = discord_ad
+	async def send_message(self, ctx, *, message:str):
 		await self.bot.say('Send message to Chatango? [Y/N]```{}```'.format(message))
 		confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
 		if confirm and confirm.content.upper()=='Y':
@@ -272,7 +286,7 @@ class Chatango:
 					ch_rooms.append(ch_room)
 			await self.bot.say('{}, Discord message sent to Chatango [{}].'.format(ctx.message.author.mention, ','.join(ch_rooms)))
 		else:
-			await self.bot.say('{}, Chatango message cancelled.'.format(ctx.message.author.mention))			
+			await self.bot.say('{}, Chatango message cancelled.'.format(ctx.message.author.mention))
 
 	@commands.command(name='chusers', pass_context=True)
 	@checks.is_owner()
