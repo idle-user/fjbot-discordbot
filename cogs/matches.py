@@ -4,47 +4,58 @@ import datetime
 from discord.ext import commands
 import discord
 
-from cogs import chatango
 from utils.dbhandler import DBHandler
-from utils import checks, credentials
+from utils import checks, credentials, quickembed
 
 
-class Matches:
+class Matches(commands.Cog):
 
 	def __init__(self, bot):
 		self.bot = bot
 		self.dbhandler = DBHandler()
-		self.bot.current_match = None
-		self.channel_general = discord.Object(id=credentials.discord['channel']['general'])
-		self.channel_ppv = discord.Object(id=credentials.discord['channel']['ppv'])
-		self.channel_raw = discord.Object(id=credentials.discord['channel']['raw'])
-		self.channel_sd = discord.Object(id=credentials.discord['channel']['sdlive'])
+		self.season = 3
+		self.current_match = None
 		self.bot.loop.create_task(self.showtime_schedule_task())
 
 	async def showtime_schedule_task(self):
 		await self.bot.wait_until_ready()
-		while not self.bot.is_closed:
+		while not self.bot.is_closed():
 			event = self.dbhandler.next_event()
 			dt = datetime.datetime.now()
 			timer = (event['date_time'] - dt).total_seconds()
-			self.bot.log('showtime_schedule_task: sleep_until:{}, event:{}'.format(dt+datetime.timedelta(seconds=timer), event['name']))
-			await asyncio.sleep(timer)
-			if 'RAW' in event['name']:
-				await self.bot.send_message(self.channel_raw, "@everyone, it's time for **Monday Night RAW**!")
+			embed = quickembed.info(author=self.bot.user, desc='Event Notification')
+			embed.add_field(name='{} has begun!'.format(event['name']), value='\u200b', inline=False)
+			if event['ppv']:
+				channel = self.bot.get_channel(credentials.discord['channel']['ppv'])
+			elif 'RAW' in event['name']:
+				channel = self.bot.get_channel(credentials.discord['channel']['raw'])
 			elif 'SmackDown' in event['name']:
-				await self.bot.send_message(self.channel_sd, "@everyone, it's time for **SmackDown LIVE**!")
-			elif event['ppv']:
-				await self.bot.send_message(self.channel_ppv, '@everyone, **{}** has begun!'.format(event['name']))
+				channel = self.bot.get_channel(credentials.discord['channel']['sdlive'])
 			else:
-				self.bot.log('{} {}'.format(event['name'], event['dt']))
+				channel = self.bot.get_channel(credentials.discord['channel']['general'])
+			self.bot.log('showtime_schedule_task: channel={} sleep:{}'.format(channel.id, dt+datetime.timedelta(seconds=timer)), embed=embed)
+			await asyncio.sleep(timer)
+			if channel:
+				await channel.send('everyone', embed=embed)
+			break
 		self.bot.log('END showtime_schedule_task')
 
-	@commands.command(name='ratestart', pass_context=True)
+	@commands.Cog.listener()
+	async def on_member_join(self, member):
+		channel = member.guild.system_channel
+		role = self.bot.get_role(credentials.discord['role']['default'])
+		await member.add_roles(role)
+		await channel.send('Welcome to {}, {}! Say hi!'.format(member.guild.name, member.mention))
+
+	@commands.command(name='ratestart')
 	async def start_match_rating(self, ctx, match_id:str=None):
-		owner = ctx.message.server.get_member(credentials.discord['owner_id'])
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+		await ctx.message.delete()
+		owner = ctx.guild.get_member(credentials.discord['owner_id'])
+		user = self.dbhandler.user_by_discord(ctx.author.id)
 		if user.access<2:
-			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))
+			msg = '{}\n[#{}] {}: {}'.format('Invalid Command', ctx.message.channel, author, ctx.message.content)
+			embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+			await owner.send(embed=embed)
 			return
 
 		try:
@@ -52,278 +63,318 @@ class Matches:
 				match_id = self.dbhandler.latest_match()['id']
 			match_id = int(match_id)
 		except:
-			await self.bot.say('Invalid `!ratestart` format.\n`!ratestart [match_id]`')
+			msg = 'Invalid `!ratestart` format.'
+			embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+			self.bot.log(embed=embed)
 			return
 
 		m = self.dbhandler.match(match_id)
-
 		if m:
-			await self.bot.say('`Start Rating on [{} | {}]? [Y/N]`'.format(m.match_type, m.contestants))
-			confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
+			msg = '```[Y/N]\nStart Rating on [{} | {}]?```'.format(m.match_type, m.contestants)
+			message = await ctx.send(embed=quickembed.question(author=ctx.author, desc=msg, user=user))
+			confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=15.0)
+			await message.delete()
 			if not confirm:
-				await self.bot.say('You took too long to confirm. Try again, {}.'.format(ctx.message.author.mention))
+				msg = '`!ratestart Match `{}` - Confirmation timeout'
+				self.bot.log(embed=quickembed.error(author=ctx.author, desc=msg, user=user))
+			else:
+				await confirm.delete()
+				confirm.content = confirm.content.upper()
+				if confirm.content=='Y':
+					self.current_match = m
+					embed = discord.Embed(title='Match Rating has Begun!',
+						url='https://fancyjesse.com/projects/matches/matches?match_id={}'.format(match_id),
+						description='Use command `!rate [number]` to give a star rating.',
+						color=0x0080ff)
+					embed.add_field(name='Event', value=m.event, inline=True)
+					if m.title:
+						embed.add_field(name='Title', value=m.title, inline=True)
+					embed.add_field(name='Type', value=m.match_type, inline=True)
+					embed.add_field(name='Contestants', value=m.contestants, inline=True)
+					embed.add_field(name='Winner(s)', value=m.contestants_won, inline=True)
+					self.bot.log('!ratestart ({})'.format(ctx.author.name), embed=embed)
+					await ctx.send(embed=embed)
+				else:
+					msg = '`!ratestart` Match `{}` - Cancelled'.format(match_id)
+					self.bot.log(embed=quickembed.error(author=ctx.author, desc=msg, user=user))
+		else:
+			msg = '`!ratestart` Match `{}` not found'.format(match_id)
+			self.bot.log(embed=quickembed.error(author=ctx.author, desc=msg, user=user))
+
+	@commands.command(name='rateend')
+	async def end_match_rating(self, ctx):
+		await ctx.message.delete()
+		user = self.dbhandler.user_by_discord(ctx.author.id)
+		if user.access<2:
+			msg = '!rateend - Insufficient access'
+			self.bot.log(embed=quickembed.general(author=ctx.author, desc=msg))
+			return
+		if self.current_match:
+			match_id = self.current_match.id
+			self.current_match = {}
+			m = self.dbhandler.match(match_id)
+			msg = 'Match Rating has ended.\nReceived a total of {0.star_rating} ({0.user_rating_avg:.3f}).\n[{0.match_type} | {0.contestants}]'.format(m)
+			await ctx.send(embed=quickembed.general(author=ctx.author, desc=msg))
+		else:
+			msg = '!rateend - No current match set.'
+			self.bot.log(embed=quickembed.general(author=ctx.author, desc=msg))
+
+	@commands.command(name='id')
+	async def send_userid(self, ctx):
+		await ctx.message.delete()
+		msg = 'Your discord_id is: `{}`\nLink it to your http://matches.fancyjesse.com profile.'.format(ctx.author.id)
+		embed = quickembed.general(author=ctx.author, desc=msg)
+		await ctx.author.send(embed=embed)
+
+	@commands.command(name='register', aliases=['verify'])
+	async def register_user(self, ctx):
+		user = self.dbhandler.user_by_discord(ctx.author.id)
+		if user:
+			msg = 'Your Discord is already registed.'
+			embed = quickembed.success(author=ctx.author, desc=msg, user=user)
+			await ctx.send(embed=embed)
+		else:
+			msg = '[Y/N]\nYour Discord is not linked to an existing Matches account (http://matches.fancyjesse.com)\nWould you like to continue registering a new account?'
+			embed = quickembed.question(author=ctx.author, desc=msg)
+			await ctx.send(embed=embed)
+			confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=15.0)
+			if not confirm:
+				msg = 'You took too long to confirm. Try again.'
+				embed = quickembed.error(author=ctx.author, desc=msg)
+				await ctx.send(embed=embed)
+				self.bot.log(embed=embed)
 			else:
 				confirm.content = confirm.content.upper()
 				if confirm.content=='Y':
-					self.bot.current_match = m
-					msg = 'Match Rating has begun! Use command `!rate [number]` to give the match a 1-5 star rating. [{0.match_type} | {0.contestants}]'.format(m)
-					await self.bot.say(msg)
-					for ch_room in credentials.chatango['rooms']:
-						chatango.chbot.sendRoomMessage(ch_room, msg)
-				else:
-					await self.bot.say('`ratestart cancelled.`')
-		else:
-			await self.bot.say('`Match not found.`')
+					user = self.dbhandler.discord_register(ctx.author.id)
+					if user:
+						msg = 'Successfully registered.\nPlease contact an admin to request a one-time username change.'
+						embed = quickembed.success(author=ctx.author, desc=msg, user=user)
+						await ctx.send(embed=embed)
+						self.bot.log(embed=embed)
+					else:
+						msg = 'Failed to register. Please contact an admin.'
+						embed = quickembed.error(author=ctx.author, desc=msg)
+						await ctx.send(embed=embed)
+						self.bot.log(embed=embed)
+				elif confirm.content=='N':
+					await ctx.send('Account registration cancelled.')
 
-	@commands.command(name='rateend', pass_context=True)
-	async def end_match_rating(self, ctx):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
-		if user.access<2:
-			await self.bot.send_message(owner, '```{}\n[#{}] {}: {}```'.format('Invalid Command', ctx.message.channel, ctx.message.author, ctx.message.content))
-			return
-		if self.bot.current_match:
-			match_id = self.bot.current_match.id
-			self.bot.current_match = {}
-			m = self.dbhandler.match(match_id)
-			msg = '`Match Rating has ended. Received a total of {0.star_rating} ({0.user_rating_avg:.3f}). [{0.match_type} | {0.contestants}]`'.format(m)
-			await self.bot.say(msg)
-			for ch_room in credentials.chatango['rooms']:
-				chatango.chbot.sendRoomMessage(ch_room, msg)
-		else:
-			await self.bot.say('`No current match set.`')
-
-	@commands.command(name='id', pass_context=True)
-	async def send_userid(self, ctx):
-		await self.bot.delete_message(ctx.message)
-		await self.bot.send_message(ctx.message.author, 'Your discord_id is: `{}`\nLink it to your http://matches.fancyjesse.com profile.'.format(ctx.message.author.id))
-
-	@commands.command(name='verify', aliases=['register'], pass_context=True)
-	async def verify_user_account(self, ctx):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
-		if user:
-			await self.bot.say('Your Discord is successfully linked to `{}` on http://matches.fancyjesse.com'.format(user.username))
-		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
-
-	@commands.command(name='login', pass_context=True)
+	@commands.command(name='login')
 	async def user_quick_login(self, ctx):
-		try:
-			await self.bot.delete_message(ctx.message)
-		except:
-			pass
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+		user = self.dbhandler.user_by_discord(ctx.author.id)
 		if user:
+			await ctx.message.delete()
 			token = self.bot.dbhandler.user_login_token(user.id)
 			link = 'https://fancyjesse.com/projects/matches?uid={}&token={}'.format(user.id, token)
-			await self.bot.send_message(ctx.message.author, 'Quick login link for you! <{}> (link expires in 5 minutes)'.format(link))
+			msg = 'Quick login link for you! (link expires in 5 minutes)\n<{}>'.format(link)
+			embed = quickembed.general(author=ctx.author, desc=msg, user=user)
+			await ctx.author.send(embed=embed)
 		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
-
-	@commands.command(name='mypage', pass_context=True)
-	async def user_page(self, ctx):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
-		if user:
-			await self.bot.say("{}'s Matches Page\nhttps://fancyjesse.com/projects/matches/user?user_id={}".format(ctx.message.author.mention, user.id))
-		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
+			await ctx.send('Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link your existing account.')
 
 	@commands.command(name='events', aliases=['ppv','ppvs'])
-	async def upcomming_events(self):
+	async def upcomming_events(self, ctx):
 		ppvs = self.dbhandler.events()
-		await self.bot.say('```Upcoming PPVs (PT)\n-------------\n{}```'.format('\n'.join(['{} - {}'.format(e['date_time'],e['name']) for e in ppvs])))
+		embed = quickembed.info(author=self.bot.user, desc='Upcoming Events (PT)')
+		embed.add_field(name='\u200b', value='\n'.join(['{} - **{}**'.format(e['date_time'],e['name']) for e in ppvs]))
+		await ctx.send(embed=embed)
 
-	@commands.command(name='bio', pass_context=True)
-	async def superstar_bio(self, ctx, *, content:str):
-		try:
-			superstar = content
-		except:
-			await self.bot.say('Invalid `!bio` format.\n`!bio [superstar]`')
-			return
-
-		superstars = self.dbhandler.superstar_search('%'+superstar.replace(' ','%')+'%')
-		if not superstars:
-			await self.bot.say("Unable to find Superstars matching '{}'".format(superstar))
+	@commands.command(name='info', aliases=['bio', 'superstar'])
+	async def superstar_info(self, ctx, *, content:str):
+		superstar_list = self.dbhandler.superstar_search('%{}%'.format(content.replace(' ','%')))
+		if not superstar_list:
+			await ctx.send("Unable to find Superstars matching '{}'".format(content))
 			return
 		else:
-			if len(superstars)>1:
+			if len(superstar_list)>1:
 				msg = 'Select Superstar from List ...\n```'
-				for i,e in enumerate(superstars):
-					msg = msg + '{}. {}\n'.format(i+1, e['name'])
+				for i,e in enumerate(superstar_list):
+					msg = msg + '{}. {}\n'.format(i+1, e.name)
 				msg = msg + '```'
-				await self.bot.say(msg)
-				response = await self.bot.wait_for_message(timeout=15.0, author=ctx.message.author, check=checks.is_number)
+				await ctx.send(msg)
+				response = await self.bot.wait_for_message(timeout=15.0, author=ctx.author, check=checks.is_number)
 				if not response:
-					await self.bot.say('You took too long to confirm. Try again, {}.'.format(ctx.message.author.mention))
+					await ctx.send('You took too long to confirm. Try again, {}.'.format(ctx.author.mention))
 				else:
 					try:
 						index = int(response.content)
-						bio = superstars[index-1]
+						superstar = superstar_list[index-1]
 					except:
-						await self.bot.say('Invalid Index.')
+						await ctx.send('Invalid Index.')
 						return
 			else:
-				bio = superstars[0]
+				superstar = superstar_list[0]
 
-			name = bio['name'] + (' ({})'.format(bio['twitter_name']) if bio['twitter_name'] else '')
-			height = 'Height: {}\n'.format(bio['height']) if bio['height'] else ''
-			weight = 'Weight: {}\n'.format(bio['weight']) if bio['weight'] else ''
-			hometown = 'Hometown: {}\n'.format(bio['hometown']) if bio['hometown'] else ''
-			signature_move = 'Signature Move(s): {}\n'.format(bio['signature_move']) if bio['signature_move'] else ''
-			dob = ''
-			if bio['dob']:
-				today = datetime.datetime.now().date()
-				age = today.year - bio['dob'].year - ((today.month, today.day) < (bio['dob'].month, bio['dob'].day))
-				dob = 'DOB: {} ({})\n'.format(bio['dob'], age)
-			msg = '{}\n```{}\n-------------\n{}{}{}{}{}\n\n{}```'.format(bio['official_image_url'], name, height, weight, dob, hometown, signature_move, bio['official_bio'])
-			if len(msg)>2000:
-				bio['official_bio'] = bio['official_bio'][0:len(bio['official_bio'])-(len(msg)-1995)]+' ...'
-				msg = '{}\n```{}\n-------------\n{}{}{}{}{}\n\n{}```'.format(bio['official_image_url'], name, height, weight, dob, hometown, signature_move, bio['official_bio'])
-			await self.bot.say(msg)
+			await ctx.send(embed=superstar.info_embed())
 
 	@commands.command(name='birthdays')
-	async def superstar_birthdays(self):
+	async def superstar_birthdays(self, ctx):
 		bdays = self.dbhandler.superstar_birthdays()
-		await self.bot.say('```Birthdays This Month\n-------------\n{}```'.format('\n'.join(['[{}] {}'.format(b['dob'],b['name']) for b in bdays])))
+		await ctx.send('```Birthdays This Month\n-------------\n{}```'.format('\n'.join(['[{}] {}'.format(b['dob'],b['name']) for b in bdays])))
 
 	@commands.command(name='superstars', aliases=['superstarlist', 'listsuperstars'])
-	async def all_superstars(self):
+	async def all_superstars(self, ctx):
 		sl = self.dbhandler.superstars()
-		sl = [s['name'] for s in sl]
-		await self.bot.say('```{}```'.format('\n'.join(sl)))
+		sl = [s.name for s in sl]
+		await ctx.send('```{}```'.format('\n'.join(sl)))
 
-	@commands.command(name='leaderboard', aliases=['leaderboards'])
-	async def current_leaderboard(self):
-		lb = self.dbhandler.leaderboard()
-		lb = ['{}. {} ({:,})'.format(i+1,l['username'],l['s2_total_points']) for i, l in enumerate(lb)]
-		await self.bot.say('```TOP 10 (Season 2)\n------\n{}```'.format('\n'.join(lb)))
-
-	@commands.command(name='leaderboard_s1', aliases=['leaderboards1', 's1leaderboard'])
-	async def leaderboard_season1(self):
+	@commands.command(name='leaderboard_s1', aliases=['top1'])
+	async def leaderboard_season1(self, ctx):
 		lb = self.dbhandler.leaderboard_s1()
+		embed = discord.Embed(title='Leaderboard',
+			url='https://fancyjesse.com/projects/matches/leaderboard?season_id=1',
+			description='Season 1',
+			color=0x0080ff)
 		lb = ['{}. {} ({:,})'.format(i+1,l['username'],l['s1_total_points']) for i, l in enumerate(lb)]
-		await self.bot.say('```TOP 10 (Season 1)\n------\n{}```'.format('\n'.join(lb)))
+		embed.add_field(name='Rankings', value='\n'.join(lb) if lb else 'Nothing found', inline=True)
+		await ctx.send(embed=embed)
+
+	@commands.command(name='leaderboard_s2', aliases=['top2'])
+	async def leaderboard_season2(self, ctx):
+		lb = self.dbhandler.leaderboard_s2()
+		embed = discord.Embed(title='Leaderboard',
+			url='https://fancyjesse.com/projects/matches/leaderboard?season_id=2',
+			description='Season 2',
+			color=0x0080ff)
+		lb = ['{}. {} ({:,})'.format(i+1,l['username'],l['s2_total_points']) for i, l in enumerate(lb)]
+		embed.add_field(name='Rankings', value='\n'.join(lb) if lb else 'Nothing found', inline=True)
+		await ctx.send(embed=embed)
+
+	@commands.command(name='leaderboard_s3', aliases=['top', 'leaderboard', 'top3'])
+	async def leaderboard_season3(self, ctx):
+		lb = self.dbhandler.leaderboard_s3()
+		embed = discord.Embed(title='Leaderboard',
+			url='https://fancyjesse.com/projects/matches/leaderboard?season_id=3',
+			description='Season 3',
+			color=0x0080ff)
+		lb = ['{}. {} ({:,})'.format(i+1,l['username'],l['s3_total_points']) for i, l in enumerate(lb)]
+		embed.add_field(name='Rankings', value='\n'.join(lb) if lb else 'Nothing found', inline=True)
+		await ctx.send(embed=embed)
 
 	@commands.command(name='titles', aliases=['champions','champs'])
-	async def current_champions(self):
+	async def current_champions(self, ctx):
 		ts = self.dbhandler.titles()
-		ts = ['{}\n{}'.format(t['title'], t['superstar']) for t in ts]
-		await self.bot.say('```Current Champions\n----------\n{}```'.format('\n\n'.join(ts)))
+		embed = discord.Embed(title='Current Champions',
+			url='https://fancyjesse.com/projects/matches/champions',
+			description='',
+			color=0x0080ff)
+		for t in ts:
+			embed.add_field(name=t['title'], value=t['superstar'], inline=False)
+		await ctx.send(embed=embed)
 
-	@commands.command(pass_context=True)
-	async def rumble(self, ctx):
-		await self.bot.say('Join the Rumble at: https://fancyjesse.com/projects/matches/royalrumble')
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+	@commands.command(name='rumble')
+	async def rumble_info(self, ctx):
+		await ctx.send('Join the Rumble at: https://fancyjesse.com/projects/matches/royalrumble')
+		user = self.dbhandler.user_by_discord(ctx.author.id)
 		if user:
 			token = self.bot.dbhandler.user_login_token(user.id)
 			link = 'https://fancyjesse.com/projects/matches/royalrumble?uid={}&token={}'.format(user.id, token)
-			await self.bot.send_message(ctx.message.author, 'Quick login link for you! <{}> (link expires in 5 minutes)'.format(link))
+			await ctx.author.send('Quick login link for you! <{}> (link expires in 5 minutes)'.format(link))
 		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
+			await ctx.send('Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link your existing account.')
 
-	@commands.command(name='stats', aliases=['mystats'], pass_context=True)
-	async def user_stats(self, ctx):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+	@commands.command(name='stats_s3', aliases=['stats', 'balance', 'bal', 'points', 'wins', 'losses', 'profile', 'mypage', 's3stats', 's3_stats'])
+	async def user_stats_season3(self, ctx):
+		user = self.dbhandler.user_by_discord(ctx.author.id)
 		if user:
+			season = 3
 			user = self.dbhandler.user_stats(user.id)
-			try:
-				ratio = '{:.3f}'.format(user['s2_wins']/user['s2_losses'])
-			except:
-				ratio = 'N/A'
-			await self.bot.say('```Username: {}\nWins: {}\nLosses: {}\nRatio: {}```'.format(user['username'], user['s2_wins'], user['s2_losses'], ratio))
+			await ctx.send(embed=user.stats_embed(author=ctx.author, season=season))
 		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
+			await ctx.send('Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link your existing account.')
 
-	@commands.command(name='stats_s1', aliases=['s1stats', 's1_stats'], pass_context=True)
+	@commands.command(name='stats_s2', aliases=['s2stats', 's2_stats'])
+	async def user_stats_season2(self, ctx):
+		user = self.dbhandler.user_by_discord(ctx.author.id)
+		if user:
+			season = 2
+			user = self.dbhandler.user_stats(user.id)
+			await ctx.send(embed=user.stats_embed(author=ctx.author, season=season))
+		else:
+			await ctx.send('Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link your existing account.')
+
+	@commands.command(name='stats_s1', aliases=['s1stats', 's1_stats'])
 	async def user_stats_season1(self, ctx):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+		user = self.dbhandler.user_by_discord(ctx.author.id)
 		if user:
+			season = 1
 			user = self.dbhandler.user_stats(user.id)
-			try:
-				ratio = '{:.3f}'.format(user['s1_wins']/user['s1_losses'])
-			except:
-				ratio = 'N/A'
-			await self.bot.say('```Username: {}\nPoints: {:,}\nWins: {}\nLosses: {}\nRatio: {}```'.format(user['username'], user['s1_points'], user['s1_wins'], user['s1_losses'], ratio))
+			await ctx.send(embed=user.stats_embed(author=ctx.author, season=season))
 		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
+			await ctx.send('Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link your existing account.')
 
-	@commands.command(name='points', aliases=['mypoints', ], pass_context=True)
-	async def user_points(self, ctx):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
-		if user:
-			user = self.dbhandler.user_stats(user.id)
-			await self.bot.say('```Username: {}\nTotal Points: {:,}\nAvailable Points: {:,}```'.format(user['username'], user['s2_total_points'], user['s2_available_points']))
-		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
-
-	@commands.command(name='bets', aliases=['mybets'], pass_context=True)
+	@commands.command(name='bets', aliases=['currentbets'])
 	async def user_current_bets(self, ctx):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+		user = self.dbhandler.user_by_discord(ctx.author.id)
 		if user:
 			bets = self.dbhandler.user_bets(user.id)
 			if bets:
-				await self.bot.say("{}'s Current Bets\n```{}```".format(ctx.message.author.mention, '\n'.join(['Match {}\n  {:,} points on {}\n  Potential Pot Winnings: {:,} ({}%)'.format(bet['match_id'], bet['points'], bet['contestants'], bet['potential_cut_points'], bet['potential_cut_pct']*100) for bet in bets])))
+				await ctx.send("{}'s Current Bets\n```{}```".format(ctx.author.mention, '\n'.join(['Match {}\n  {:,} points on {}\n  Potential Pot Winnings: {:,} ({}%)'.format(bet['match_id'], bet['points'], bet['contestants'], bet['potential_cut_points'], bet['potential_cut_pct']*100) for bet in bets])))
 			else:
-				await self.bot.say('{} has no bets placed on Matches.'.format(ctx.message.author.mention))
+				await ctx.send('{} has no bets placed on Matches.'.format(ctx.author.mention))
 		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
+			await ctx.send('Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link your existing account.')
 
 	@commands.command(name='match')
-	async def match(self, *args):
+	async def match_info(self, ctx, id=None):
 		try:
-			match_id = int(args[0])
+			match_id = int(id)
 		except:
-			await self.bot.say('Invalid `!match` format.\n`!match [match_id]`')
+			await ctx.send('Invalid `!match` format.\n`!match [match_id]`')
 			return
 		m = self.dbhandler.match(match_id)
 		if m:
-			await self.bot.say('```{}```'.format(m.display_full()))
+			await ctx.send(embed=m.info_embed())
 		else:
-			await self.bot.say('Match `{}` not found.'.format(match_id))
+			msg = 'Match `{}` not found.'.format(match_id)
+			await ctx.send(embed=quickembed.error(author=ctx.author, desc=msg))
 
 	@commands.command(name='matches', aliases=['openmatches'])
-	async def open_matches(self):
+	async def open_matches(self, ctx):
 		match_list = self.dbhandler.open_matches()
 		if match_list:
-			msg = 'Open Matches\n------------'
 			for m in match_list:
-				m_display = m.display_full()
-				if len(msg + m_display) > 2000:
-					await self.bot.say('```{}```'.format(msg))
-					msg = '...\n\n'
-				else:
-					msg = msg + '\n\n'
-				msg = msg + m_display
-			await self.bot.say('```{}```'.format(msg))
+				await ctx.send(embed=m.info_embed())
 		else:
-			await self.bot.say('No open bet matches available.')
+			msg = 'No open bet matches available.'
+			embed = quickembed.error(author=ctx.author, desc=msg)
+			await ctx.send(embed=embed)
 
-	@commands.command(name='bet', pass_context=True)
+	@commands.command(name='bet')
 	async def place_match_bet(self, ctx, *args):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+		user = self.dbhandler.user_by_discord(ctx.author.id)
 		if user:
 			try:
-				if len(args) == 2:
-					bet = int(args[0])
-					superstar = ' '.join(args[1:])
-					match_id = False
-				else:
-					bet = int(args[0])
+				bet = int(args[0].replace(',',''))
+				if len(args)==3 and args[1].isdigit() and args[2].isdigit():
 					match_id = int(args[1])
 					team_id = int(args[2])
 					superstar = False
+				else:
+					superstar = ' '.join(args[1:])
+					match_id = False
 			except:
-				await self.bot.say('Invalid `!bet` format.\n`!bet [bet_amount] [contestant]`\n`!bet [bet_amount] [match_id] [team]`')
+				msg = 'Invalid `!bet` format.\n`!bet [bet_amount] [contestant]`\n`!bet [bet_amount] [match_id] [team]`'
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
 			if bet<1:
-				await self.bot.say('Invalid bet. Try again, {}.'.format(ctx.message.author.mention))
+				msg = 'Invalid bet. Try again.'
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
 			user = self.dbhandler.user_stats(user.id)
-			if user['s2_available_points'] < bet:
-				await self.bot.say('Insufficient points available ({0}). Try again, {1}.'.format(user['s2_available_points'], ctx.message.author.mention))
+			if user.season_available_points(self.season) < bet:
+				msg = 'Insufficient points available: `({})`. Try again.'.format(user.season_available_points(self.season))
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
 			matches = self.dbhandler.open_matches()
 			if not matches:
-				await self.bot.say('No Open Matches found. Try again, {}.\nEnter `!matches` to view current matches.'.format(ctx.message.author.mention))
+				msg = 'No Open Matches found. Try again.\n`!matches` to view current matches.'
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
 			match = None
 			for m in matches:
@@ -335,62 +386,86 @@ class Matches:
 					team_id = m.team_by_contestant(superstar)
 					break
 			if not match:
-				await self.bot.say('Match not found. Try again, {}.\nEnter `!matches` to view current matches.'.format(ctx.message.author.mention))
+				msg = 'Match not found. Try again.\n`!matches` to view current matches.'
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
 			if not match.bet_open:
-				await self.bot.say('Match bets are closed. Try again, {}.\nEnter `!matches` to view current matches.'.format(ctx.message.author.mention))
+				msg = 'Match bets are closed. Try again.\n`!matches` to view current matches.'
 				return
 			team_members = match.contestants_by_team(team_id)
 			if not team_members:
-				await self.bot.say('Invalid Team. Try again, {}.'.format(ctx.message.author.mention))
+				msg = 'Invalid Team. Try again.'
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
-			ub = self.dbhandler.user_bet_check(user['id'], match.id)
+			ub = self.dbhandler.user_bet_check(user.id, match.id)
 			if ub:
-				await self.bot.say('{}, you already have a {:,} bet placed on {}.'.format(ctx.message.author.mention, ub['points'], match.contestants_by_team(ub['team'])))
+				msg = 'You already have a `{:,}` bet placed on `{}`.'.format(ub['points'], match.contestants_by_team(ub['team']))
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
-			await self.bot.say('{}, are you sure you want to bet **{:,} points** on **{}**?  [Y/N]\n({})'.format(ctx.message.author.mention, bet, team_members, match.display_short()))
-			confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
+			msg = '[Y/N]\nAre you sure you want to bet `{:,}` points on `{}`?\n({})'.format(bet, team_members, match.display_short())
+			embed = quickembed.question(author=ctx.author, desc=msg, user=user)
+			await ctx.send(embed=embed)
+			confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=10.0)
 			if not confirm:
-				await self.bot.say('You took too long to confirm. Try again, {}.'.format(ctx.message.author.mention))
+				msg = 'You took too long to confirm. Try again.'
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 			else:
 				confirm.content = confirm.content.upper()
 				if confirm.content=='Y':
-					if self.dbhandler.user_bet(user['id'], match.id, team_id, bet):
+					if self.dbhandler.user_bet(user.id, match.id, team_id, bet):
 						pot = self.dbhandler.match(match.id).base_pot
-						await self.bot.say('{} placed a {:,} point bet on Match {} for **{}**!\nMatch Base Pot is now **{:,}** points.'.format(ctx.message.author.mention, bet, match.id, team_members, pot))
+						msg = 'Placed a `{:,}` point bet on Match `{}` for `{}`!\nMatch Base Pot is now `{:,}` points.'.format(bet, match.id, team_members, pot)
+						embed = quickembed.success(author=ctx.author, desc=msg, user=user)
+						await ctx.send(embed=embed)
 					else:
-						await self.bot.say('{}, unable to process bet.'.format(ctx.message.author.mention))
+						msg = '{}, unable to process bet.'.format(ctx.author.mention)
+						embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+						await ctx.send(embed=embed)
 				elif confirm.content=='N':
-					await self.bot.say("{}'s bet cancelled. Coward.".format(ctx.message.author.mention))
+					msg = 'Bet cancelled. Coward.'
+					embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+					await ctx.send(embed=embed)
 		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
+			msg = 'Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link your existing account.'
+			embed = quickembed.error(author=ctx.author, desc=msg)
+			await ctx.send(embed=embed)
 
-	@commands.command(name='rate', pass_context=True)
+	@commands.command(name='rate')
 	async def rate_match(self, ctx, *args):
-		user = self.dbhandler.user_by_discord(ctx.message.author.id)
+		user = self.dbhandler.user_by_discord(ctx.author.id)
 		if user:
 			try:
-				if self.bot.current_match:
-					match_id = self.bot.current_match.id
+				if self.current_match:
+					match_id = self.current_match.id
 					rate = float(args[0])
 				else:
 					match_id = int(args[0])
 					rate = float(args[1])
 			except:
-				await self.bot.say('Invalid `!rate` format.\n`!rate [match_id] [rating]`')
+				msg = 'Invalid `!rate` format.\n`!rate [match_id] [rating]`'
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
-			if rate<0 or rate>5:
-				await self.bot.say('Invalid match rating. Try again, {}.'.format(ctx.message.author.mention))
+			if rate<=0 or rate>5:
+				msg = 'Invalid match rating. Try again.'
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 				return
 			m = self.dbhandler.match(match_id)
 			if m:
-				#if match['team_won']==0:
-				#	await self.bot.say('Match rating unavailable - No decision yet, {}.'.format(ctx.message.author.mention))
 				if (datetime.datetime.today().date() - m.date).days > 2:
-					await self.bot.say('Match rating unavailable - Past 48 hours of event date, {}.'.format(ctx.message.author.mention))
+					msg = 'Match rating unavailable - Past 48 hours of event date'
+					embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+					await ctx.send(embed=embed)
 				else:
 					if not self.dbhandler.user_rate(user.id, m.id, rate):
-						await self.bot.say('Something went wrong. Try again later, {}.'.format(ctx.message.author.mention))
+						msg = 'Something went wrong. Try again later.'
+						embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+						await ctx.send(embed=embed)
 						return
 					if rate:
 						stars = ''
@@ -399,13 +474,17 @@ class Matches:
 								stars += '★'
 							else:
 								stars += '☆'
-						await self.bot.say('{0} gave `Match {1.id}` {2} ({3})'.format(ctx.message.author.mention, m, stars, rate))
-					else:
-						await self.bot.say('{0} removed their rating for `Match {1.id}`.'.format(ctx.message.author.mention, m))
+						msg = 'Rated `Match {}` {} ({})'.format(m.id, stars, rate)
+						embed = quickembed.success(author=ctx.author, desc=msg, user=user)
+						await ctx.send(embed=embed)
 			else:
-				await self.bot.say('Match {} not found.'.format(match_id))
+				msg = 'Match {} not found.'.format(match_id)
+				embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+				await ctx.send(embed=embed)
 		else:
-			await self.bot.say('You are not registered.\nPlease visit http://matches.fancyjesse.com to register.\nThen link your Discord account by using command `!id`.')
+			msg = 'Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link your existing account.'
+			embed = quickembed.error(author=ctx.author, desc=msg, user=user)
+			await ctx.send(embed=embed)
 
 def setup(bot):
 	bot.add_cog(Matches(bot))

@@ -1,57 +1,96 @@
-FJBot
-========================================================================
+# FJBot
+
+[![Discord Chat](https://discordapp.com/api/guilds/361689774723170304/embed.png)](https://discord.gg/Q9mX5hQ/)
 [![status](https://img.shields.io/badge/Project%20Status-work--in--progress-green.svg)](#)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jesus_andrade45%40yahoo%2ecom&lc=US&item_name=GitHub%20Projects&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
 
-A Discord bot with focus on Matches and includes Chatango and Twitter integration
+A Discord bot with focus on wrestling events and [Matches](https://fancyjesse.com/projects/matches).
 
 **Discord Server:** [WatchWrestling](https://discord.gg/Q9mX5hQ)
 
 
-Introduction
-------------------------------------------------------------------------
-This Discord Bot was originally created for a Discord Server in 2017 that focuses on all-things wrestling. It was made with the focus to integrate [Matches](https://fancyjesse.com/projects/matches) into the Server. This allows Discord Users to bet and rate matches, look up Superstar biographies and birthdays, share gifs, and be alerted on events. In short, enhance the user experience. 
+## Introduction
 
-Integration with Twitter and Chatango was later added onto the bot. 
+This Discord Bot was originally created for a Discord Server back in 2017. It was made with the focus to integrate [Matches](https://fancyjesse.com/projects/matches) into the Server. This allows Users to bet and rate matches, look up Superstar biographies, share gifs, and be alerted of upcomming wrestling events. 
 
-Originally, the bot existed on a single Python file. I had no idea I would be supporting this bot for close to a year or even begin scaling it to include additonal features. With all these additional featues, I decided to transition this Discord Bot project to use COGs.
+Originally, this bot was handled through a single Python file. I had no idea that I would still be supporting the bot this long or even begin scaling it to include additonal features and commands. Because of the expansion of the bot, I decided to transition this Discord Bot project to use cogs. Made code management a whole lot easier.
 
-Prerequisites
-------------------------------------------------------------------------
+## Prerequisites
+
 Python3
 
 
-Installation
-------------------------------------------------------------------------
+## Installing
+
+Update and install required libraries for Python3.7.3
+```
+sudo apt-get update
+sudo apt-get install -y build-essential tk-dev libncurses5-dev libncursesw5-dev libreadline6-dev libdb5.3-dev libgdbm-dev libsqlite3-dev libssl-dev libbz2-dev libexpat1-dev liblzma-dev zlib1g-dev libffi-dev
+```
+
+Download and install Python3.7.3
+```
+wget https://www.python.org/ftp/python/3.7.3/Python-3.7.3.tar.xz
+tar xf Python-3.7.3.tar.xz
+cd Python-3.7.3/
+sudo ./configure
+sudo make -j 4
+sudo make altinstall
+```
+
+Upgrade pip
+```
+sudo python3.7 -m pip install --upgrade pip
+```
+
+Install required Python3.7.3 packages for FJBot
+```
+sudo python3.7 -m pip install discord mysqlclient tweepy bs4 ffmpeg
+```
+
+Set alias [optional]
+```
+sudo ln -s /usr/bin/python3.7 /usr/bin/python3
+```
+
+
+## Bot Example
+
 TODO
 
 
-Usage
-------------------------------------------------------------------------
-TODO
+## Release History
 
+2019.05.06
+* Complete rewrite to comply with discord.py rewrite
+* Bot messages are now embeded
+* Removed cross-cog dependency
+* Added quickembed.py to utils for quick embeded messages
+* Commented out Tweepy unsupported calls (Repo does not support new Twitter API)
+* Updated voice cog to search YouTube video by title or direct link
+* Created a class for: Match, Superstar, Userstats
+* Match and User classes can output their info in embed format
+* Code cleanup
 
-Release History
-------------------------------------------------------------------------
 2019.02.05
-* Added Voice COG (plays YouTube audio)
+* Added Voice cog (plays YouTube audio)
 * Role checks are based only on IDs now
 * Updated credential sample to include only IDs
 * Added function for quick login for registered users
 * Added a Discord Channel for Logging
 * Added logging calls within project
-* Twitter COG updated (functionality limited by latest Twitter API update)
+* Twitter cog updated (functionality limited by latest Twitter API update)
 * Updated query calls based on database table updates
 * Various new functions added
 * Text fixes
 
 2018.10.14
 * Added User class
-* Updated COGs to use new User class
+* Updated cogs to use new User class
 * Added direct PM to Discord Server owner function
-* Updated admin COG checks
+* Updated admin cog checks
 * Updated ch library with alterations (bugs found)
-* Updated chatango COG to include match listings and betting
+* Updated chatango cog to include match listings and betting
 * Modifications to dbhandler to explicitly call queries
 * Updated credentials to include Discord invite link
 * Text fixes
@@ -61,35 +100,35 @@ Release History
 * Various database optimization within dbhandler
 * Created Class module for readability
 * Removed \_\_obosolete__ directory
-* Updated logging between COGs - all use main fjbot function now
+* Updated logging between cogs - all use main fjbot function now
 * Added admin commands
-* Heavily updated chatango COG
-* Updated tweet log within twitter COG to use async functions
-* Started progress on twitter COG to accept PMs
+* Heavily updated chatango cog
+* Updated tweet log within twitter cog to use async functions
+* Started progress on twitter cog to accept PMs
 * Added additional checks
-* Renamed COG wwe to matches
+* Renamed wwe cog to matches
 * Bug fixes
 
 2018.06.24
-* Updated database reference between COGs
-* Added ch.py library used for the chatango.py COG
+* Updated database reference between cogs
+* Added ch.py library used for the chatango.py cog
 * Bug fixes
 
 2018.06.10
-* Bug fixes with COG communication
+* Bug fixes with cog communication
 
 2018.06.09
-* Transition to COG model
+* Transition to cog model
 
 2018.06.08
 * Initial introduction to GitHub
 
 
-License
-------------------------------------------------------------------------
-See the file "LICENSE" for license information.
+## License
+
+This project is licensed under the GNU GPLv3 License - see the [LICENSE](LICENSE) file for details
 
 
-Authors
-------------------------------------------------------------------------
+## Authors
+
 FancyJesse

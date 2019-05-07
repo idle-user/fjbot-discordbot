@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
 import datetime
 import MySQLdb
 import random
 import string
 
-from .fjclasses import User
-from .fjclasses import Match
-from .credentials import mysql
+from utils.fjclasses import User, UserStats, Match, Superstar
+from utils.credentials import mysql
 
 
 class DBHandler:
@@ -16,8 +14,11 @@ class DBHandler:
 		self.connect()
 
 	def __del__(self):
-		self.db.close()
-		self.c.close()
+		try:
+			self.db.close()
+			self.c.close()
+		except:
+			pass
 
 	def connect(self):
 		try:
@@ -31,7 +32,6 @@ class DBHandler:
 			self.db = MySQLdb.connect(host=mysql['host'], db=mysql['db'], user=mysql['user'], passwd=mysql['secret'])
 			self.db.autocommit(True)
 			self.c = self.db.cursor(MySQLdb.cursors.DictCursor)
-			print('[{}] New DB Connection Started'.format(datetime.datetime.now()))
 			return True
 		except:
 			print('[{}] DB Connection Failed'.format(datetime.datetime.now()))
@@ -46,28 +46,36 @@ class DBHandler:
 	def user_by_discord(self, discord_id):
 		self.connect()
 		self.c.execute('SELECT * FROM user WHERE discord_id=%s', (discord_id,))
-		return User(self.c.fetchone())
+		data = self.c.fetchone()
+		if data:
+			return User(data)
+		return False
 
 	def user_by_chatango(self, chatango_id):
 		self.connect()
 		self.c.execute('SELECT * FROM user WHERE chatango_id=%s', (chatango_id,))
-		return User(self.c.fetchone())
+		data = self.c.fetchone()
+		if data:
+			return User(data)
+		return False
 
 	def user_by_twitter(self, twitter_id):
 		self.connect()
 		self.c.execute('SELECT * FROM user WHERE twitter_id=%s', (twitter_id,))
-		return User(self.c.fetchone())
+		if data:
+			return User(data)
+		return False
 
 	def user_login_token(self, user_id):
 		token = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
 		self.connect()
-		self.c.execute('CALL user_set_login_token(%s, %s);', (user_id, token))
+		self.c.execute('CALL usp_upd_user_login_token(%s, %s);', (user_id, token))
 		return token
 
 	def user_temp_password(self, user_id):
 		temp = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
 		self.connect()
-		self.c.execute('CALL user_set_temp_secret(%s, %s);', (user_id, temp))
+		self.c.execute('CALL usp_upd_user_temp_secret(%s, %s);', (user_id, temp))
 		return temp
 
 	# chatango
@@ -83,7 +91,18 @@ class DBHandler:
 			return False
 
 	# discord
-	# always called first - handles reconnect if connection has gone away
+	def discord_register(self, discord_id):
+		self.connect()
+		try:
+			temp_username = 'Discord_User_{}'.format(discord_id)[:25]
+			self.c.execute(''' 
+				INSERT INTO user (username, date_created, discord_id, chatango_last_updated)
+				VALUES (%s, NOW(), %s, NOW())'''
+			, (temp_username, discord_id))
+			return self.user_by_discord(discord_id)
+		except:
+			return False
+
 	def discord_command(self, prefix):
 		self.connect()
 		self.c.execute('SELECT * FROM discord_command WHERE prefix=%s', (prefix,))
@@ -151,24 +170,62 @@ class DBHandler:
 		)
 		return self.c.fetchall()
 
-	def user_stats(self, user_id):
+	def user_stats(self, id):
 		self.connect()
-		self.c.execute('SELECT * FROM view_user_stats WHERE id=%s', (user_id,))
-		return self.c.fetchone()
+		self.c.execute('SELECT * FROM uv_user_stats WHERE user_id=%s', (id,))
+		return UserStats(self.c.fetchone())
 
-	def superstar_bio(self, superstar):
+	def superstar_list(self):
 		self.connect()
-		self.c.execute('SELECT * FROM superstar LEFT JOIN superstar_social ON superstar_id=superstar.id WHERE name LIKE %s', (superstar,))
+		self.c.execute('SELECT * FROM superstar')
+		return [Superstar(s) for s in self.c.fetchall()]
+
+	def superstar_by_id(self, id):
+		self.connect()
+		self.c.execute('SELECT * FROM superstar WHERE id=%s', (id,))
+		return Superstar(self.c.fetchone())
+
+	def superstar_by_name(self, name):
+		self.connect()
+		self.c.execute('SELECT * FROM superstar WHERE name LIKE %s', (name,))
 		return self.c.fetchone()
 
 	def superstar_twitter(self):
 		self.connect()
-		self.c.execute('SELECT * FROM superstar_social JOIN superstar ON superstar.id=superstar_id')
+		self.c.execute('SELECT * FROM superstar WHERE twitter_id<>0')
 		return self.c.fetchall()
+
+	def superstar_update(self, superstar):
+		self.connect()
+		try:
+			return self.c.execute(''' 
+				UPDATE superstar SET
+					name=%s
+					,brand_id=%s
+					,height=%s
+					,weight=%s
+					,hometown=%s
+					,dob=%s
+					,signature_move=%s
+					,page_url=%s
+					,image_url=%s
+					,bio=%s
+					,twitter_id=%s
+					,twitter_username=%s
+					,last_updated=NOW()
+				WHERE superstar.id=%s'''
+			, (superstar.name, superstar.brand_id, superstar.height
+				, superstar.weight, superstar.hometown, superstar.dob
+				, superstar.signature_move, superstar.page_url
+				, superstar.image_url, superstar.bio
+				, superstar.twitter_id, superstar.twitter_username
+				, superstar.id))
+		except:
+			return False
 
 	def superstar_update_twitter_id(self, superstar_id, twitter_id):
 		self.connect()
-		return self.c.execute('UPDATE superstar_social SET twitter_id=%s WHERE superstar_id=%s', (twitter_id, superstar_id))
+		return self.c.execute('UPDATE superstar SET twitter_id=%s WHERE id=%s', (twitter_id, superstar_id))
 
 	def superstar_update_twitter_log(self, superstar_id, follow):
 		self.connect()
@@ -182,21 +239,26 @@ class DBHandler:
 	def superstars(self):
 		self.connect()
 		self.c.execute('SELECT * FROM superstar ORDER BY name')
-		return self.c.fetchall()
+		return [Superstar(s) for s in self.c.fetchall()]
 
 	def superstar_search(self, name):
 		self.connect()
-		self.c.execute('SELECT * FROM superstar LEFT JOIN superstar_social ON superstar_id=superstar.id WHERE name LIKE %s ORDER BY name', (name,))
-		return self.c.fetchall()
-
-	def leaderboard(self):
-		self.connect()
-		self.c.execute('SELECT * FROM view_user_stats WHERE s2_wins+s2_losses>0 ORDER BY s2_total_points DESC LIMIT 10')
-		return self.c.fetchall()
+		self.c.execute('SELECT * FROM superstar WHERE name LIKE %s ORDER BY name', (name,))
+		return [Superstar(s) for s in self.c.fetchall()]
 
 	def leaderboard_s1(self):
 		self.connect()
-		self.c.execute('SELECT * FROM view_user_stats WHERE s1_wins+s1_losses>0 ORDER BY s1_total_points DESC LIMIT 10')
+		self.c.execute('SELECT * FROM uv_user_stats WHERE s1_wins+s1_losses>0 ORDER BY s1_total_points DESC LIMIT 10')
+		return self.c.fetchall()
+
+	def leaderboard_s2(self):
+		self.connect()
+		self.c.execute('SELECT * FROM uv_user_stats WHERE s2_wins+s2_losses>0 ORDER BY s2_total_points DESC LIMIT 10')
+		return self.c.fetchall()
+
+	def leaderboard_s3(self):
+		self.connect()
+		self.c.execute('SELECT * FROM uv_user_stats WHERE s3_wins+s3_losses>0 ORDER BY s3_total_points DESC LIMIT 10')
 		return self.c.fetchall()
 
 	def titles(self):
@@ -240,7 +302,7 @@ class DBHandler:
 		self.connect()
 		self.c.execute(""" 
 			SELECT vm.*
-			FROM view_matches vm
+			FROM uv_matches vm
 			WHERE vm.completed=0 AND vm.match_type_id<>0"""
 		)
 		rows = self.c.fetchall()
@@ -257,7 +319,7 @@ class DBHandler:
 		self.connect()
 		self.c.execute(""" 
 			SELECT vm.*
-			FROM view_matches vm
+			FROM uv_matches vm
 			WHERE vm.id=%s"""
 		, (match_id,))
 		row = self.c.fetchone()
@@ -278,7 +340,7 @@ class DBHandler:
 				,ubc.potential_cut_pct
 				,ubc.potential_cut_points
 			FROM user_bet ub
-			JOIN user_bet_calculations ubc ON ubc.match_id=ub.match_id and ubc.user_id=%s
+			JOIN user_bet_calculation ubc ON ubc.match_id=ub.match_id and ubc.user_id=%s
 			JOIN match_contestant mc ON mc.match_id=ub.match_id AND ub.team=mc.team
 			JOIN superstar s on s.id=mc.superstar_id
 			JOIN `match` m ON m.id=ub.match_id
@@ -303,15 +365,10 @@ class DBHandler:
 		except:
 			return False
 
-	def user_rate(self, user_id, match_id, rate):
+	def user_rate(self, user_id, match_id, rating):
 		self.connect()
 		try:
-			self.c.execute(""" 
-			INSERT INTO user_match_rating (user_id, match_id, rate, updates, dt_updated)
-			VALUES (%s, %s, %s, 1, NOW())
-			ON DUPLICATE KEY UPDATE rate=%s, updates=updates+1, dt_updated=NOW()"""
-			, (user_id, match_id, rate, rate))
-			return True
+			return self.c.execute('CALL usp_ins_user_match_rating(%s, %s, %s)', (user_id, match_id, rating))
 		except:
 			return False
 

@@ -9,18 +9,16 @@ import tweepy
 from utils import checks, credentials
 
 
-class Twitter:
+class Twitter(commands.Cog):
 
 	def __init__(self, bot):
 		self.bot = bot
-		self.channel_general = discord.Object(id=credentials.discord['channel']['general'])
-		self.channel_twitter = discord.Object(id=credentials.discord['channel']['twitter'])
 		self.auth = tweepy.OAuthHandler(credentials.twitter['consumer_key'], credentials.twitter['consumer_secret'])
 		self.auth.set_access_token(credentials.twitter['access_token'], credentials.twitter['access_token_secret'])
 		self.twitter = tweepy.API(self.auth)
 		self.bot.log('[{}] Twitter {}: START'.format(datetime.datetime.now(), self.twitter.me().screen_name))
 		self.bot.loop.create_task(self.superstar_birthday_task())
-		self.start_log_stream()
+		#self.start_log_stream()
 		#self.start_dm_stream()
 		#self.dm_test()
 
@@ -74,7 +72,7 @@ class Twitter:
 
 	def start_log_stream(self):
 		log_superstars = [s for s in self.bot.dbhandler.superstar_twitter() if s['twitter_discord_log']]
-		self.bot.log('Twitter Logging: [{}]'.format(', '.join([s['name'] for s in log_superstars])))
+		self.bot.log('Twitter Logging: [{}]'.format(', '.join([s['twitter_username'] for s in log_superstars])))
 		log_ids = [s['twitter_id'] for s in log_superstars]
 		log_ids.append('7517222') # @WWE
 		log_ids.append('1357803824') # @totaldivaseps
@@ -136,18 +134,13 @@ class Twitter:
 		self.twitter.send_direct_message_new(event)
 	"""
 
-	@commands.command(name='tdm', pass_context=True)
-	@checks.is_owner()
-	async def send_tdm(self, ctx, msg):
-		id = '105715916'
-		self.live_dm(recipient_id=id, message=msg)
-
 	async def tweet_log(self, message):
-		await self.bot.send_message(self.channel_twitter, message)
+		channel = self.bot.get_channel(credentials.discord['channel']['twitter'])
+		await channel.send(message)
 
 	async def superstar_birthday_task(self):
 		await self.bot.wait_until_ready()
-		while not self.bot.is_closed:
+		while not self.bot.is_closed():
 			events = []
 			dt = datetime.datetime.now()
 			timer = ((24 - dt.hour - 1) * 60 * 60) + ((60 - dt.minute - 1) * 60) + (60 - dt.second)
@@ -162,84 +155,90 @@ class Twitter:
 			await asyncio.sleep(timer)
 			if events:
 				tweet_link = self.live_tweet('Happy Birthday, {}! #BDAY\n- Sent from everyone at https://discord.gg/Q9mX5hQ #discord #fjbot'.format(', '.join(e['twitter_name'] for e in events)))
-				await self.bot.send_message(self.channel_twitter, tweet_link)
+				channel = self.bot.get_channel(credentials.discord['channel']['twitter'])
+				await channel.send(tweet_link)
 		self.bot.log('END birthday_schedule_task')
-
-	@commands.command(name='sendtweet', pass_context=True)
+		
+	@commands.command(name='tweetdm')
+	@checks.is_owner()
+	async def send_tdm(self, ctx, *, msg):
+		id = '105715916'
+		self.live_dm(recipient_id=id, message=msg)
+		
+	@commands.command(name='tweetsend')
 	@checks.is_owner()
 	async def send_tweet(self, ctx, *, message:str):
-		await self.bot.say('Send Tweet? [Y/N]```{}```'.format(message))
-		confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
+		await ctx.send('Send Tweet? [Y/N]```{}```'.format(message))
+		confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=10.0)
 		if confirm and confirm.content.upper()=='Y':
 			tweet_link = self.live_tweet(message)
-			await self.bot.send_message(self.channel_twitter, tweet_link)
+			channel = self.bot.get_channel(credentials.discord['channel']['twitter'])
+			await channel.send(tweet_link)
 		else:
-			await self.bot.say('`Tweet cancelled.`')
+			await ctx.send('`Tweet cancelled.`')
 
-	@commands.command(name='viewtweets', aliases=['tweets'], pass_context=True)
-	async def superstar_tweets(self, ctx, *args):
+	@commands.command(name='viewtweets', aliases=['tweets'])
+	async def superstar_tweets(self, ctx, name, limit=1):
 		try:
-			superstar = args[0]
-			count = int(args[1]) if len(args)>1 else 1
-			count = 1 if count<1 else count
-			count = 5 if count>5 else count
+			superstar = name
+			limit = 1 if limit<1 else limit
+			limit = 5 if limit>5 else limit
 		except:
-			await self.bot.say('Invalid `!tweets` format.\n`!tweets [superstar] [count]`')
+			await ctx.send('Invalid `!tweets` format.\n`!tweets [superstar] [limit]`')
 			return
-		bio = self.bot.dbhandler.superstar_bio('%'+superstar.replace(' ','%')+'%')
+		bio = self.bot.dbhandler.superstar_by_name('%'+superstar.replace(' ','%')+'%')
 		id = bio['twitter_id'] if bio else '@{}'.format(superstar)
 		if id:
-			tweets = self.latest_tweets(id, count)
+			tweets = self.latest_tweets(id, limit)
 			for tweet in tweets:
-				await self.bot.say('https://twitter.com/statuses/{}'.format(tweet.id))
+				await ctx.send('https://twitter.com/statuses/{}'.format(tweet.id))
 		else:
-			await self.bot.say("Unable to find Tweets for `{}`'".format(superstar))
+			await ctx.send("Unable to find Tweets for `{}`'".format(superstar))
 
 	@commands.command(name='tlist')
 	async def superstar_stream_list(self):
 		log_superstars = [s for s in self.bot.dbhandler.superstar_twitter() if s['twitter_discord_log']]
-		await self.bot.say('```Currently Streaming: [{}]```'.format(', '.join([s['name'] for s in log_superstars])))
+		await ctx.send('```Currently Streaming: [{}]```'.format(', '.join([s['name'] for s in log_superstars])))
 
-	@commands.command(name='tadd', pass_context=True, hidden=True)
+	@commands.command(name='tadd', hidden=True)
 	@checks.is_mod()
-	async def add_superstar_stream(self, ctx, superstar_name):
-		superstar = self.bot.dbhandler.superstar_bio('%'+superstar_name.replace(' ','%')+'%')
+	async def add_superstar_stream(self, ctx, *, name):
+		superstar = self.bot.dbhandler.superstar_by+name('%'+name.replace(' ','%')+'%')
 		if not superstar:
-			await self.bot.say('Unable to find Superstar matching `{}`'.format(superstar_name))
+			await ctx.send('Unable to find Superstar matching `{}`'.format(name))
 			return
 		if superstar['twitter_id']:
 			self.bot.dbhandler.superstar_update_twitter_log(superstar['id'], 1)
-			await self.bot.say('`Followed {}`'.format(superstar['twitter_name']))
+			await ctx.send('`Followed {}`'.format(superstar['twitter_name']))
 		else:
-			await self.bot.say('Unable to find Twitter account for `{}`'.format(superstar['name']))
+			await ctx.send('Unable to find Twitter account for `{}`'.format(superstar['name']))
 
-	@commands.command(name='tremove', pass_context=True, hidden=True)
+	@commands.command(name='tremove', hidden=True)
 	@checks.is_mod()
-	async def remove_superstar_stream(self, ctx, superstar_name):
-		superstar = self.bot.dbhandler.superstar_bio('%'+superstar_name.replace(' ','%')+'%')
+	async def remove_superstar_stream(self, ctx, *, name):
+		superstar = self.bot.dbhandler.superstar_by_name('%'+name.replace(' ','%')+'%')
 		if not superstar:
-			await self.bot.say('Unable to find Superstar matching `{}`'.format(superstar_name))
+			await ctx.send('Unable to find Superstar matching `{}`'.format(name))
 			return
 		if superstar['twitter_id']:
 			self.bot.dbhandler.superstar_update_twitter_log(superstar['id'], 0)
-			await self.bot.say('`Unfollowed {}`'.format(superstar['twitter_name']))
+			await ctx.send('`Unfollowed {}`'.format(superstar['twitter_name']))
 		else:
-			await self.bot.say('Unable to find Twitter account for `{}`'.format(superstar['name']))
+			await ctx.send('Unable to find Twitter account for `{}`'.format(superstar['name']))
 
-	@commands.command(name='tupdate', pass_context=True, hidden=True)
-	@checks.is_owner()
+	@commands.command(name='tupdate', hidden=True)
+	@checks.is_admin()
 	async def update_twitter_ids(self):
 		self.bot.log('Updating Superstar Twitter IDs')
 		for s in self.bot.dbhandler.superstar_twitter():
 			try:
-				twitter_user = self.twitter.get_user(s['twitter_name'])
+				twitter_user = self.twitter.get_user(s['twitter_username'])
 				twitter_id = twitter_user.id_str if twitter_user.verified else ''
 				self.bot.dbhandler.superstar_update_twitter_id(s['id'], twitter_id)
 				self.bot.log('Updated {}: {} ({})'.format(s['name'], s['twitter_name'], twitter_id))
 			except:
 				self.bot.log('Error {}: {}'.format(s['name'], s['twitter_name']))
 			await asyncio.sleep(0.5)
-
 
 def setup(bot):
 	bot.add_cog(Twitter(bot))

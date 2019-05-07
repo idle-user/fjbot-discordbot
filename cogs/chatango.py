@@ -13,11 +13,11 @@ from utils import checks, credentials
 
 
 chbot = None
-class Chatango:
+class Chatango(commands.Cog):
 
 	def __init__(self, bot):
 		self.bot = bot
-		self.channel_chatango = discord.Object(id=credentials.discord['channel']['chatango'])
+		self.current_match = None
 		self.bot.loop.create_task(self.chatango_bot_task())
 		self.bot.loop.create_task(self.chatango_log_task())
 
@@ -29,6 +29,7 @@ class Chatango:
 		def onInit(self):
 			global chbot
 			chbot = self
+			self.season = 3
 			self.buffer = []
 			self.users = []
 			self.setNameColor('000099')
@@ -38,6 +39,7 @@ class Chatango:
 		def onMessage(self, room, user, message):
 			self.users.append(user.name)
 			msg = '[{}] @{}: {}'.format(room.name, user.name, message.body)
+			print(msg)
 			self.buffer.append(msg)
 			if user.name==self.name.lower():
 				return
@@ -165,8 +167,8 @@ class Chatango:
 				return 'No Open Matches available.'
 		def display_stats(self, username):
 			try:
-				stats = self.bot.dbhandler.user_stats(self.verify(username).id)
-				return 'Total Points: {:,} | Available Points: {:,} | Wins: {} | Losses: {} | Profile: https://fancyjesse.com/projects/matches/user?user_id={}'.format(stats['s2_total_points'], stats['s2_available_points'], stats['s2_wins'], stats['s2_losses'], stats['id'])
+				user = self.bot.dbhandler.user_stats(self.verify(username).id)
+				return user.season_stats_text(self.season)
 			except Exception as e:
 				self.bot.log('[chatango] Exception:display_stats: {} {}'.format(username, e))
 		def bet_match(self, username, args):
@@ -179,7 +181,7 @@ class Chatango:
 				return 'Invalid bet amount. Try again'
 			try:
 				user = self.bot.dbhandler.user_stats(self.verify(username).id)
-				if user['s2_available_points'] < bet:
+				if user.season_available_points(self.season) < bet:
 					return 'Insufficient points available. You only have `{}` points. Please try again.'.format(user['s2_available_points'])
 				matches = self.bot.dbhandler.open_matches()
 				if not matches:
@@ -208,9 +210,9 @@ class Chatango:
 			except Exception as e:
 				self.bot.log('[chatango] Exception:bet_match: {} {} {} {}'.format(e, username, bet, contestant))
 		def rate_match(self, username, rating=0):
-			if not self.bot.current_match:
+			if not self.current_match:
 				return 'No Current Match set for Rating.'
-			match_id = self.bot.current_match.id
+			match_id = self.current_match.id
 			try:
 				rating = float(rating)
 			except:
@@ -265,33 +267,34 @@ class Chatango:
 		await self.bot.wait_until_ready()
 		await self.wait_until_chbot_running()
 		chbot.bot = self.bot
+		channel_chatango = self.bot.get_channel(credentials.discord['channel']['chatango'])
 		self.bot.log('[{}] Chatango {}: START'.format(datetime.now(), chbot.name))
 		self.bot.log('Starting Chatango Stream ...')
-		while not self.bot.is_closed and chbot._running:
+		while not self.bot.is_closed() and chbot._running:
 			while chbot.buffer:
-				await self.bot.send_message(self.channel_chatango, '```{}```'.format(chbot.buffer.pop(0)))
+				await channel_chatango.send('```{}```'.format(chbot.buffer.pop(0)))
 				await asyncio.sleep(0.5)
 			await asyncio.sleep(1)
 		self.bot.log('END chatango_log_task')
 
-	@commands.command(name='ch', pass_context=True)
-	@checks.is_owner()
+	@commands.command(name='chsend')
+	#@checks.is_owner()
 	async def send_message(self, ctx, *, message:str):
-		await self.bot.say('Send message to Chatango? [Y/N]```{}```'.format(message))
-		confirm = await self.bot.wait_for_message(timeout=10.0, author=ctx.message.author, check=checks.confirm)
+		await ctx.send('Send message to Chatango? [Y/N]```{}```'.format(message))
+		confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=10.0)
 		if confirm and confirm.content.upper()=='Y':
 			ch_rooms = []
 			for ch_room in credentials.chatango['rooms']:
 				if chbot.sendRoomMessage(ch_room, message):
 					ch_rooms.append(ch_room)
-			await self.bot.say('{}, Discord message sent to Chatango [{}].'.format(ctx.message.author.mention, ','.join(ch_rooms)))
+			await ctx.send('{}, Discord message sent to Chatango [{}].'.format(ctx.author.mention, ','.join(ch_rooms)))
 		else:
-			await self.bot.say('{}, Chatango message cancelled.'.format(ctx.message.author.mention))
+			await ctx.send('{}, Chatango message cancelled.'.format(ctx.author.mention))
 
-	@commands.command(name='chusers', pass_context=True)
+	@commands.command(name='chusers')
 	@checks.is_owner()
-	async def display_users(ctx):
-		await self.bot.say('```Chatango User List ({})\n {}```'.format(len(chbot.users), chbot.users))
+	async def display_users(self, ctx):
+		await ctx.send('```Chatango User List ({})\n {}```'.format(len(chbot.users), chbot.users))
 
 def setup(bot):
 	bot.add_cog(Chatango(bot))
