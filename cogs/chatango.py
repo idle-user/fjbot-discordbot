@@ -9,20 +9,19 @@ import discord
 from discord.ext import commands
 
 from lib import ch
-from utils import checks, credentials
+from utils.fjclasses import ChatangoUser, Match
+from utils import config, checks
 
 
 chbot = None
 class Chatango(commands.Cog):
-
 	def __init__(self, bot):
 		self.bot = bot
 		self.current_match = None
 		self.bot.loop.create_task(self.chatango_bot_task())
 		self.bot.loop.create_task(self.chatango_log_task())
 
-	def __unload(self):
-		global chbot
+	def __unload__(self):
 		chbot.stop()
 
 	class ChBot(ch.RoomManager):
@@ -36,214 +35,143 @@ class Chatango(commands.Cog):
 			self.setFontColor('000099')
 			self.setFontFace('Times')
 			self.setFontSize(14)
-		def onMessage(self, room, user, message):
-			self.users.append(user.name)
-			msg = '[{}] @{}: {}'.format(room.name, user.name, message.body)
-			print(msg)
+		
+		def onMessage(self, room, author, message):
+			if 'fjbot' in message.body.lower():
+				msg = '[{}] {}: {}'.format(room.name, author.name, message.body)
+				self.buffer.append(msg)
+			self.message_handler(author, message.body)
+			# room.message('@{}, {}'.format(author.name, msg))
+		
+		def onPMMessage(self, pm, author, message):
+			msg = '[PM] {}: {}'.format(author.name, message)
 			self.buffer.append(msg)
-			if user.name==self.name.lower():
-				return
-			args = message.body.lower().split(' ')
-			if not args[0].startswith('!') or user.name.startswith('#'):
-				return
-			elif '!discord' in args[0]:
-				msg = 'Discord Channel: {}'.format(credentials.discord['invite_link'])
-				self.sendUserMessage(user.name, msg)
-				self.bot.log('[chatango] sendUserMessage:{} - {}'.format(user.name, msg))
-			elif not self.verify(user.name) and not 'register' in args[0]:
-				msg = 'You must first register to use commands. Please use command `!register`.'
-				self.sendUserMessage(user.name, msg)
-				# room.message('@{}, {}'.format(user.name, msg))
-			else:
-				try:
-					self.command_handler(user.name, args[0], args[1:])
-				except Exception as e:
-					self.bot.log('[chatango] Exception:onMessage: {} {}'.format(e, msg))
-		def onPMMessage(self, pm, user, body):
-			self.bot.log('[chatango] onPMMessage:{} - {}'.format(user, body))
-			args = body.split(' ')
-			if  not args[0].startswith('!') or user.name.startswith('#'):
-				return
-			if not self.verify(user.name) and not 'register' in args[0]:
-				self.sendUserMessage(user.name, 'You must first register to use commands. Please use command `!register`.')
-			else:
-				try:
-					self.command_handler(user.name, args[0], args[1:])
-				except Exception as e:
-					self.bot.log('[chatango] Exception: onPMMessge:{}'.format(e))
+			self.message_handler(author, message)
+		
 		def onFloodWarning(self, room):
-			self.bot.log('[chatango] onFloodWarning:{}'.format(room))
+			self.bot.log('```\n[chatango] onFloodWarning:{}\n```'.format(room))
+		
 		def onFloodBan(self, room):
-			self.bot.log('[chatango] onFloodBan:{}'.format(room))
+			self.bot.log('```\n[chatango] onFloodBan:{}\n```'.format(room))
+		
 		def sendRoomMessage(self, room, msg):
 			room = self.getRoom(room)
 			if room:
 				room.message(msg)
 				return True
 			return False
-		def sendUserMessage(self, username, msg):
-			#msg = '{} (Discord Channel: {})'.format(msg, credentials.discord['invite_link'])
-			#self.bot.log('[chatango] sendUserMessage:{} - {}'.format(username, msg))
+		
+		def sendUserMessage(self, user, msg):
 			try:
 				if sys.getsizeof(msg) > 800:
 					tokens = msg.split()
 					mid = round(len(tokens)/2)
-					self.pm.message(ch.User(username), '{} ...'.format(' '.join(tokens[:mid])))
+					self.pm.message(ch.User(user.name), '{} ...'.format(' '.join(tokens[:mid])))
 					sleep(0.5)
-					self.pm.message(ch.User(username), '... {}'.format(' '.join(tokens[mid:])))
+					self.pm.message(ch.User(user.name), '... {}'.format(' '.join(tokens[mid:])))
 				else:
-					self.pm.message(ch.User(username), msg)
+					self.pm.message(ch.User(user.name), msg)
 			except:
-				self.bot.log('[chatango] Failed to PM User:{}'.format(username))
-		def command_handler(self, username, cmd, args=[]):
-			cmd = cmd.lower()
-			res = False
-			if cmd == '!register':
-				res = self.register(username)
-			elif cmd == '!login':
-				res = self.login_link(username)
-			elif cmd == '!help':
-				res = '!resetpw - Get a temporary password for the website | !rate - Rate the current match | !mypoints - View your Match Points | !bet - Bet on a current match with your Match Points | !rumble - Get an entry number the Royal Rumble | !commands - get a list of other commands'
-			elif cmd == '!resetpw':
-				res = self.reset_pw(username)
-			elif cmd in ['!mypoints', '!points', '!mystats', '!stats']:
-				res = self.display_stats(username)
-			elif cmd == '!matches':
-				res = self.open_matches()
-			elif cmd == '!bet':
-				try:
-					res = self.bet_match(username, args)
-				except Exception as e:
-					self.bot.log('[chatango] Exception:command_handler: {} {} {} {}'.format(username, cmd, e ,args))
-			elif cmd == '!rate':
-				try:
-					res = self.rate_match(username, args[0])
-				except Exception as e:
-					self.bot.log('[chatango] Exception:command_handler: {} {} {} {}'.format(username, cmd, e ,args))
-			elif cmd == '!rumble':
-				res = self.royalrumble_entry(username, args)
-			elif cmd == '!commands':
-				res = ' | '.join(self.bot.dbhandler.misc_commands())
-			elif cmd == '!test':
-				res = 'This is a test message\nTest'
+				self.bot.log('```\n[chatango] Failed to PM User:{}\n```'.format(user.name))
+		
+		def message_handler(self, author, message):
+			if author.name==self.name.lower() or not message.startswith('!'):
+				return
+			args = message.lower().split(' ')
+			user = ChatangoUser(author)
+			if '!discord' in args[0]:
+				msg = 'Discord Channel: {}'.format(config.discord['invite_link'])
+				self.sendUserMessage(user, msg)
+			elif not user.is_registered() and 'register' not in args[0]:
+				msg = 'You must first register to use commands. Please use command `!register`.'
+				self.sendUserMessage(user, msg)
 			else:
-				res = self.bot.dbhandler.discord_command(cmd)
-				if res:
-					res = res['response']
-					if('@mention' in res): res = res.replace('@mention', '@{}'.format(username))
-			if res:
-				self.sendUserMessage(username, res)
-		def verify(self, username):
-			try:
-				user = self.bot.dbhandler.user_by_chatango(username)
-				return user
-			except:
-				return False
-		def register(self, username):
-			if self.verify(username):
-				return '@{}, you are already registered. Use `!help` to get a list of commands'.format(username)
-			data = self.bot.dbhandler.chatango_register(username)
-			if data:
-				self.bot.log('[chatango] {} has registered.'.format(username))
-				return '@{}, registration was successful! You can now use !login to get a quick login link for the website. Remember to set a password for your account by using `!resetpw`. For other commands, use `!help`.'.format(username)
-			else:
-				self.bot.log('[chatango] Failed to register: {}'.format(username))
-				return False
-		def login_link(self, username):
-			user = self.verify(username)
-			token = self.bot.dbhandler.user_login_token(user.id)
-			self.bot.log('[chatango] {} requested a login link.'.format(username))
-			return 'https://fancyjesse.com/projects/matches?uid={}&token={} (Link expires in 5 minutes)'.format(user.id, token)
+				self.command_handler(user, args[0], args[1:])
 
-		def reset_pw(self, username):
-			user = self.verify(username)
-			temp = self.bot.dbhandler.user_temp_password(user.id)
-			return 'Visit https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches to set a new password. Link will expire in 30 minutes.'.format(temp, user.id, user.username)
-		def open_matches(self):
-			matches = self.bot.dbhandler.open_matches()
-			if matches:
-				return ' | '.join(['[{} - {}]'.format(m.match_type, m.contestants) for m in matches])
+		def command_handler(self, user, cmd, args=[]):
+			cmd = cmd.lower()
+			msg = False
+			if cmd == '!register':
+				msg = self.register(user)
+			elif cmd == '!login':
+				msg = self.login_link(user)			elif cmd == '!help':
+				msg = '!resetpw - Get a temporary password for the website | !rate - Rate the current match | !mypoints - View your Match Points | !bet - Bet on a current match with your Match Points | !rumble - Get an entry number the Royal Rumble | !commands - get a list of other commands'
+			elif cmd == '!resetpw':
+				msg = self.reset_pw(user)
+			elif cmd in ['!mypoints', '!points', '!mystats', '!stats']:
+				msg = user.stats_text(season=3)
+			elif cmd == '!rate':
+				msg = self.rate_match(user, args)
+			elif cmd == '!bet':
+				msg = self.bet_match(user, args)
+			elif cmd == '!rumble':
+				msg = self.join_rumble(user)
+			elif cmd == '!matches':
+				msg = self.open_matches(user)
+			else:
+				res = user.chatroom_command(cmd)
+				if res:
+					msg = res['response']
+					if('@mention' in res): msg = msg.replace('@mention', user.mention)
+			if msg:
+				self.sendUserMessage(user._author, msg)
+		
+		def register(self, user):
+			if user.is_registered():
+				return '{}, you are already registered. Use `!help` to get a list of commands'.format(user.mention)
+			row = user.register()
+			if row['success']:
+				self.bot.log('```\n[chatango] `{}` has registered\n```'.format(user.name))
+				return '{}, registration was successful! You can now use !login to get a quick login link for the website. Remember to set a password for your account by using `!resetpw`. For other commands, use `!help`.'.format(user.mention)
+			else:
+				self.bot.log('```\n[chatango] Failed to register: `{}`\n```'.format(user.name))
+				return row['message']
+		
+		def login_link(self, user):
+			link = user.request_login_link()
+			self.bot.log('```\n[chatango] `{}` requested a login link\n```'.format(user.name))
+			return '{} (link expires in 5 minutes)'.format(link)
+
+		def reset_pw(self, user):
+			link = user.request_change_password_link()
+			self.bot.log('```\n[chatango] `{}` requested a change password link\n```'.format(user.name))
+			return '{} (Link will expire in 30 minutes)'.format(link)
+		
+		def rate_match(self, user, args=[]):
+			if not args:
+				return 'Missing a valid rating. Command: !rate [number]'
+			try:
+				rating = float(args[0])
+			except:
+				return 'Not a valid rating'			
+			rows = user.search_match_by_recent_completed()
+			if not rows:
+				return 'No Current Match set for rating.'
+			match = Match(id=rows[0].id)
+			res = user.rate_match(match.id, rating)
+			if res['success']:
+				self.bot.log('```\n[chatango] `{}` rated `Match {}` `{}` stars\n```'.format(user.name, match.id, rating))
+				return '{} Star Match rating received for: {}'.format(rating, match.info_text_short())
+			else:
+				return res['message']
+		
+		def bet_match(self, user, args=[]):
+			pass
+		
+		def royalrumble_entry(self, user, args=[]):
+			pass
+		
+		def open_matches(self, user):
+			rows = user.search_match_by_open_bets()
+			if rows:
+				matches = [Match(row.id) for row in rows]
+				matches_info = ['[{} - {}]'.format(m.match_type, m.contestants) for m in matches]
+				return ' | '.join(matches_info)
 			else:
 				return 'No Open Matches available.'
-		def display_stats(self, username):
-			try:
-				user = self.bot.dbhandler.user_stats(self.verify(username).id)
-				return user.season_stats_text(self.season)
-			except Exception as e:
-				self.bot.log('[chatango] Exception:display_stats: {} {}'.format(username, e))
-		def bet_match(self, username, args):
-			try:
-				bet = int(args[0])
-				contestant = str(args[1])
-			except:
-				return 'Invalid `!bet` format. Use `!bet [bet_amount] [contestant]`'
-			if bet<1:
-				return 'Invalid bet amount. Try again'
-			try:
-				user = self.bot.dbhandler.user_stats(self.verify(username).id)
-				if user.season_available_points(self.season) < bet:
-					return 'Insufficient points available. You only have `{}` points. Please try again.'.format(user['s2_available_points'])
-				matches = self.bot.dbhandler.open_matches()
-				if not matches:
-					return 'No Open Matches found. Enter `!matches` to see a list of Open Matches.'
-				match = None
-				for m in matches:
-					if m.contains_contestant(contestant):
-						match = m
-						team_id = m.team_by_contestant(contestant)
-						break
-				if not match:
-					return 'Match not found with `{}`. Enter `!matches` to see a list of Open Matches. Please try again.'.format(contestant)
-				if not match.bet_open:
-					return 'Match bets are closed. Enter `!matches` to see a list of Open Matches. Please try again.'
-				team_members = match.contestants_by_team(team_id)
-				ub = self.bot.dbhandler.user_bet_check(user['id'], match.id)
-				if ub:
-					return 'You already have a {:,} point bet placed on {}.'.format(ub['points'], team_members)
-				if self.bot.dbhandler.user_bet(user['id'], match.id, team_id, bet):
-					pot = self.bot.dbhandler.match(match.id).base_pot
-					self.bot.log('[chatango] {} placed a {:,} point bet on Match {} for {}.'.format(username, bet, match.id, team_members))
-					return 'You placed a `{:,}` point bet on Match {} for **{}**! Match Base Pot is now **{:,}** points.'.format(bet, match.id, team_members, pot)
-				else:
-					self.bot.log('[chatango] Unable to process bet. user:{} bet:{} Match:{} members:{}.'.format(username, bet, match.id, team_members))
-					return 'Unable to process your bet. Issue has been reported. Please try again later.'
-			except Exception as e:
-				self.bot.log('[chatango] Exception:bet_match: {} {} {} {}'.format(e, username, bet, contestant))
-		def rate_match(self, username, rating=0):
-			if not self.current_match:
-				return 'No Current Match set for Rating.'
-			match_id = self.current_match.id
-			try:
-				rating = float(rating)
-			except:
-				rating = 0
-			if rating<1 or rating>5:
-				return 'Not a valid star rating. (1-5)'
-			try:
-				if self.bot.dbhandler.user_rate(self.verify(username).id, match_id, rating):
-					self.bot.log('[chatango] {} rated Match {} {} stars.'.format(username, match_id, rating))
-					return '{} Star Match rating received.'.format(rating)
-			except Exception as e:
-				self.bot.log('[chatango] Exception:rate_match: {} {} {} {}', e, username, match_id, rating)
-		def royalrumble_entry(self, username, args=[]):
-			self.bot.log('[chatango] {} requested a Rumble login link.'.format(username))
-			user = self.verify(username)
-			if not args or args[0] != 'now':
-				token = self.bot.dbhandler.user_login_token(user.id)
-				return 'Visit the following link to join the Rumble! https://fancyjesse.com/projects/matches/royalrumble?uid={}&token={} (Link expires in 5 minutes)'.format(user.id, token)
-			res = self.bot.dbhandler.royalrumble_check(user.id)
-			if res:
-				return 'You have already entered as #{} on {}'.format(res['number'], res['dt_entered'])
-			res  = self.bot.dbhandler.royalrumble_entry(user.id)
-			if res:
-				self.bot.log('[chatango] {} Entered the Rumble as #{}.'.format(username, res))
-				res = 'You have entered the Royal Rumble as #{}'.format(res)
-			else:
-				res = 'Unable to join the Royal Rumble. Probably not open yet or you have already entered.'
-			return res
 
 	def start_chbot(self):
-		self.ChBot.easy_start(credentials.chatango['rooms'], credentials.chatango['username'], credentials.chatango['secret'])
+		self.ChBot.easy_start(config.chatango['rooms'], config.chatango['username'], config.chatango['secret'])
 
 	async def chatango_bot_task(self):
 		await self.bot.wait_until_ready()
@@ -251,7 +179,7 @@ class Chatango(commands.Cog):
 		t_stream = Thread(target=self.start_chbot)
 		await self.bot.loop.run_in_executor(executor, t_stream.start)
 		await self.bot.loop.run_in_executor(executor, t_stream.join)
-		self.bot.log('END chatango_bot_task')
+		self.bot.log('```\nchatango_bot_task: END\n```')
 
 	async def wait_until_chbot_running(self, limit=30):
 		while limit > 0:
@@ -267,24 +195,25 @@ class Chatango(commands.Cog):
 		await self.bot.wait_until_ready()
 		await self.wait_until_chbot_running()
 		chbot.bot = self.bot
-		channel_chatango = self.bot.get_channel(credentials.discord['channel']['chatango'])
-		self.bot.log('[{}] Chatango {}: START'.format(datetime.now(), chbot.name))
-		self.bot.log('Starting Chatango Stream ...')
+		channel_chatango = self.bot.get_channel(config.discord['channel']['chatango'])
+		print('[{}] Chatango {}: START'.format(datetime.now(), chbot.name))
+		self.bot.log('```\nchatango_log_task: START\n```')
 		while not self.bot.is_closed() and chbot._running:
 			while chbot.buffer:
 				await channel_chatango.send('```{}```'.format(chbot.buffer.pop(0)))
 				await asyncio.sleep(0.5)
 			await asyncio.sleep(1)
-		self.bot.log('END chatango_log_task')
+		print('[{}] Chatango {}: END'.format(datetime.now(), chbot.name))
+		self.bot.log('```\nchatango_log_task: END\n```')
 
 	@commands.command(name='chsend')
-	#@checks.is_owner()
+	@commands.is_owner()
 	async def send_message(self, ctx, *, message:str):
 		await ctx.send('Send message to Chatango? [Y/N]```{}```'.format(message))
 		confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=10.0)
 		if confirm and confirm.content.upper()=='Y':
 			ch_rooms = []
-			for ch_room in credentials.chatango['rooms']:
+			for ch_room in config.chatango['rooms']:
 				if chbot.sendRoomMessage(ch_room, message):
 					ch_rooms.append(ch_room)
 			await ctx.send('{}, Discord message sent to Chatango [{}].'.format(ctx.author.mention, ','.join(ch_rooms)))
@@ -292,9 +221,9 @@ class Chatango(commands.Cog):
 			await ctx.send('{}, Chatango message cancelled.'.format(ctx.author.mention))
 
 	@commands.command(name='chusers')
-	@checks.is_owner()
+	@commands.is_owner()
 	async def display_users(self, ctx):
-		await ctx.send('```Chatango User List ({})\n {}```'.format(len(chbot.users), chbot.users))
+		await ctx.send('```\nChatango User List ({})\n {}```'.format(len(chbot.users), chbot.users))
 
 def setup(bot):
 	bot.add_cog(Chatango(bot))

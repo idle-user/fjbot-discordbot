@@ -116,5 +116,4 @@ venv.bak/
 *.save
 
 # ignore just incase
-utils/credentials.py
-__obsolete__/credentials.py
+utils/config.py

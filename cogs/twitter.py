@@ -6,15 +6,14 @@ from discord.ext import commands
 import discord
 import tweepy
 
-from utils import checks, credentials
+from utils import config, checks
 
 
 class Twitter(commands.Cog):
-
 	def __init__(self, bot):
 		self.bot = bot
-		self.auth = tweepy.OAuthHandler(credentials.twitter['consumer_key'], credentials.twitter['consumer_secret'])
-		self.auth.set_access_token(credentials.twitter['access_token'], credentials.twitter['access_token_secret'])
+		self.auth = tweepy.OAuthHandler(config.twitter['consumer_key'], config.twitter['consumer_secret'])
+		self.auth.set_access_token(config.twitter['access_token'], config.twitter['access_token_secret'])
 		self.twitter = tweepy.API(self.auth)
 		self.bot.log('[{}] Twitter {}: START'.format(datetime.datetime.now(), self.twitter.me().screen_name))
 		self.bot.loop.create_task(self.superstar_birthday_task())
@@ -135,7 +134,7 @@ class Twitter(commands.Cog):
 	"""
 
 	async def tweet_log(self, message):
-		channel = self.bot.get_channel(credentials.discord['channel']['twitter'])
+		channel = self.bot.get_channel(config.discord['channel']['twitter'])
 		await channel.send(message)
 
 	async def superstar_birthday_task(self):
@@ -155,7 +154,7 @@ class Twitter(commands.Cog):
 			await asyncio.sleep(timer)
 			if events:
 				tweet_link = self.live_tweet('Happy Birthday, {}! #BDAY\n- Sent from everyone at https://discord.gg/Q9mX5hQ #discord #fjbot'.format(', '.join(e['twitter_name'] for e in events)))
-				channel = self.bot.get_channel(credentials.discord['channel']['twitter'])
+				channel = self.bot.get_channel(config.discord['channel']['twitter'])
 				await channel.send(tweet_link)
 		self.bot.log('END birthday_schedule_task')
 		
@@ -172,7 +171,7 @@ class Twitter(commands.Cog):
 		confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=10.0)
 		if confirm and confirm.content.upper()=='Y':
 			tweet_link = self.live_tweet(message)
-			channel = self.bot.get_channel(credentials.discord['channel']['twitter'])
+			channel = self.bot.get_channel(config.discord['channel']['twitter'])
 			await channel.send(tweet_link)
 		else:
 			await ctx.send('`Tweet cancelled.`')

@@ -61,8 +61,20 @@ TODO
 
 ## Release History
 
+2019.05.13
+* Complete rewrite in progress
+* Superstar, DiscordUser, ChatangoUser, Match are now classes
+* Complete overhaul of Database handling
+* Database calls are now handled by the classes
+* Updated function checks
+* Renamed credentials.py to config.py
+* Chatango Bot rewrite
+* Update quickembed to support Class structures
+* Cleaned up error handling
+* Still be updated: twitter.py, voice.py
+
 2019.05.06
-* Complete rewrite to comply with discord.py rewrite
+* Complete update to comply with discord.py rewrite
 * Bot messages are now embeded
 * Removed cross-cog dependency
 * Added quickembed.py to utils for quick embeded messages

@@ -12,38 +12,45 @@ color = {
 	'yellow':0xffff00,
 }
 
-def filler(embed, author, desc, user):
-	if author.bot:
-		embed.set_author(name=desc, icon_url=author.avatar_url)
-		return embed
+def filler(embed, desc, user):
 	if user:
-		embed.set_author(name='{} ({})'.format(author.display_name, user.username), icon_url=author.avatar_url, url=user.url)
+		if user.discord.bot:
+			embed.set_author(name=desc, icon_url=user.discord.avatar_url)
+		elif user.is_registered():
+			embed.set_author(
+				name='{0.discord.display_name} ({0.username})'.format(user), 
+				icon_url=user.discord.avatar_url,
+				url=user.url)
+		else:
+			embed.set_author(name=user.discord, icon_url=user.discord.avatar_url)
+		embed.description = desc
 	else:
-		embed.set_author(name=author, icon_url=author.avatar_url)
+		embed.set_author(name='Notification')
+
 	embed.description = desc
 	return embed
 
-def general(author, desc, user=None):
+def general(desc, user=None):
 	embed = discord.Embed(color=color['blue'])
-	embed = filler(embed=embed, author=author, desc=desc, user=user)
+	embed = filler(embed=embed, desc=desc, user=user)
 	return embed
 
-def info(author, desc, user=None):
+def info(desc, user=None):
 	embed = discord.Embed(color=color['white'])
-	embed = filler(embed=embed, author=author, desc=desc, user=user)
+	embed = filler(embed=embed, desc=desc, user=user)
 	return embed
 
-def error(author, desc, user=None):
+def error(desc, user=None):
 	embed = discord.Embed(color=color['red'])
-	embed = filler(embed=embed, author=author, desc=desc, user=user)
+	embed = filler(embed=embed, desc=desc, user=user)
 	return embed
 
-def success(author, desc, user=None):
+def success(desc, user=None):
 	embed = discord.Embed(color=color['green'])
-	embed = filler(embed=embed, author=author, desc=desc, user=user)
+	embed = filler(embed=embed, desc=desc, user=user)
 	return embed
 
-def question(author, desc, user=None):
+def question(desc, user=None):
 	embed = discord.Embed(color=color['yellow'])
-	embed = filler(embed=embed, author=author, desc=desc, user=user)
+	embed = filler(embed=embed,desc=desc, user=user)
 	return embed

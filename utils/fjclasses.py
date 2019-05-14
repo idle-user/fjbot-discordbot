@@ -1,122 +1,274 @@
 from datetime import datetime
+import MySQLdb
+import random
+import string
 
+from discord.ext import commands
 import discord
 
-from utils import quickembed
+from utils import config, quickembed
 
 
-class User:
-	def __init__(self, row):
-		self.id = row['id']
-		self.username = row['username']
-		self.access = row['access']
-		self.last_login = row['last_login']
+class UserNotRegisteredError(commands.CheckFailure):
+	pass
+
+class _Database:
+	def __init__(self):
+		super().__init__()
+		self._connection = MySQLdb.connect(
+			host=config.mysql['host'],
+			db=config.mysql['db'],
+			user=config.mysql['user'],
+			passwd=config.mysql['secret'])
+		self._connection.autocommit(True)
+		self._cursor = self._connection.cursor(MySQLdb.cursors.DictCursor)
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self):
+		self.close()
+
+	def __del__(self):
+		self.close()
+
+	@property
+	def connection(self):
+		return self._connection
+
+	@property
+	def cursor(self):
+		return self._cursor
+
+	@property
+	def db(self):
+		return self
+
+	def close(self):
+		try:
+			self.connection.close()
+			self.cusor.close()
+		except:
+			pass
+
+	def execute(self, sql, params=None):
+		self.cursor.execute(sql, params or ())
+
+	def fetchall(self):
+		return self.cursor.fetchall()
+
+	def fetchone(self):
+		return self.cursor.fetchone()
+
+	def query(self, sql, params=None):
+		self.execute(sql, params)
+		return self.fetchall()
+
+class _DbHelper(_Database):
+	def __init__(self):
+		super().__init__()
+
+	def search_user_by_name(self, name):
+		return [_Base(id=row['id'], name=row['username']) for row in self.db.query('CALL usp_sel_user_by_name(%s)', (name,))]
+
+	def search_superstar_by_name(self, name):
+		return [_Base(id=row['id'], name=row['name']) for row in self.db.query('CALL usp_sel_superstar_by_name(%s)', (name,))]
+
+	def search_match_by_id(self, id):
+		return [_Base(id=row['id']) for row in self.db.query('SELECT id FROM `match` WHERE match_type_id<>0 AND id=%s', (id,))]
+
+	def search_match_by_superstar_name(self, name):
+		return [_Base(id=row['match_id']) for row in self.db.query('SELECT match_id FROM match_calculation WHERE contestants LIKE %s', ('%{}%'.format(name),))]
+
+	def search_match_by_open_bets(self):
+		return [_Base(id=row['id']) for row in self.db.query('SELECT id FROM `match` WHERE match_type_id<>0 AND bet_open=1')]	
+
+	def search_match_by_open_bets_and_supertar_name(self, name):
+		return [_Base(id=row['match_id']) for row in self.db.query('SELECT match_id FROM match_calculation JOIN `match` ON id=match_id WHERE bet_open=1 AND match_type_id<>0 AND contestants LIKE %s', ('%{}%'.format(name),))]
+
+	def search_match_by_recent_completed(self):
+		return [_Base(id=row['id']) for row in self.db.query('CALL usp_sel_match_recent_completed()')]
+
+	def leaderboard(self, season):
+		return self.db.query('CALL usp_sel_user_leaderboard(%s)', (season,))
+
+	def chatroom_command(self, command):
+		rows = self.db.query('CALL usp_sel_chatroom_command(%s)', (command,))
+		if rows:
+			return rows[0]
+		return False
+
+	def chatroom_command_list(self):
+		return self.db.query('SELECT * FROM chatroom_command ORDER BY command')
+
+	def future_events(self, ppv_check=0):
+		return self.db.query('CALL usp_sel_event_future(%s)', (ppv_check,))
+
+	def superstar_birthday_upcoming(self):
+		return self.db.query('CALL usp_sel_superstar_birthday_upcoming()')
+
+class _Base:
+	def __init__(self, id=None, name=None):
+		super().__init__()
+		self._id = id
+		self._name = name
+
+	@property
+	def id(self):
+		return self._id
+
+	@property
+	def name(self):
+		return self._name
+
+	def fetch_info(self):
+		raise NotImplementedError
+
+	def fill_info(self):
+		raise NotImplementedError
+
+class _User(_Base):
+	def __init__(self):
+		super().__init__()
+		self._username = None
+
+	@property
+	def username(self):
+		return self._name
+
+	@property
+	def mention(self):
+		raise NotImplementedError
+
+	def register(self):
+		return NotImplementedError
+
+	def fill_info(self, row):
+		self._id = row['id']
+		self._name = row['username']
 		self.discord_id = row['discord_id']
 		self.chatango_id = row['chatango_id']
 		self.twitter_id = row['twitter_id']
+		self.access = row['access']
+		self.last_login = row['last_login']
 		self.url = 'https://fancyjesse.com/projects/matches/user?user_id={}'.format(self.id)
 
-class UserStats:
-	def __init__(self, row):
-		self.id = row['user_id']
-		self.username = row['username']
-		self.date_created = row['date_created']
-		self.favorite_superstar_id = row['favorite_superstar_id']
-		self.combined_total_wins = row['total_wins']
-		self.combined_total_losses = row['total_losses']
-		self.combined_total_points = row['total_points']
-		self.s1_wins = row['s1_wins']
-		self.s1_losses = row['s1_losses']
-		self.s1_daily_points = row['s1_daily_points']
-		self.s1_bet_points = row['s1_bet_points']
-		self.s1_total_points = row['s1_total_points']
-		self.s1_available_points = row['s1_available_points']
-		self.s2_wins = row['s2_wins']
-		self.s2_losses = row['s2_losses']
-		self.s2_daily_points = row['s2_daily_points']
-		self.s1_bet_points = row['s2_bet_points']
-		self.s2_total_points = row['s2_total_points']
-		self.s2_available_points = row['s2_available_points']
-		self.s3_wins = row['s3_wins']
-		self.s3_losses = row['s3_losses']
-		self.s3_daily_points = row['s3_daily_points']
-		self.s3_bet_points = row['s3_bet_points']
-		self.s3_total_points = row['s3_total_points']
-		self.s3_available_points = row['s3_available_points']
-		self.url = 'https://fancyjesse.com/projects/matches/user?user_id={}'.format(self.id)
+	def is_registered(self):
+		return True if self.id and self.username else False
 
-	def season_winloss_ratio(self, season):
-		wins = self.season_wins(season)
-		losses = self.season_losses(season)
-		if wins==0 and losses==0:
-			return 'N/A'
-		if losses==0:
-			losses = 1
-		return '{:.3f}'.format(wins/losses)
+	def stats(self, season):
+		return self.db.query('CALL usp_sel_user_stats_by_id(%s, %s)', (self.id, season))[0]
 
-	def season_wins(self, season):
-		if season==1:
-			return self.s1_wins
-		elif season==2:
-			return self.s2_wins
-		elif season==3:
-			return self.s3_wins
-		return 0
+	def place_bet(self, match_id, team, bet):
+		return self.db.query('CALL usp_ins_user_bet(%s, %s, %s, %s)', (self.id, match_id, team, bet))[0]
 
-	def season_losses(self, season):
-		if season==1:
-			return self.s1_losses
-		elif season==2:
-			return self.s2_losses
-		elif season==3:
-			return self.s3_losses
-		return 0
+	def rate_match(self, match_id, rating):
+		return self.db.query('CALL usp_ins_user_match_rating(%s, %s, %s)', (self.id, match_id, rating))[0]
 
-	def season_total_points(self, season):
-		if season==1:
-			return self.s1_total_points
-		elif season==2:
-			return self.s2_total_points
-		elif season==3:
-			return self.s3_total_points
-		return 0
+	def current_bets(self):
+		return self.db.query('CALL usp_sel_user_current_bets(%s)', (self.id,))
 
-	def season_available_points(self, season):
-		if season==1:
-			return self.s1_available_points
-		elif season==2:
-			return self.s2_available_points
-		elif season==3:
-			return self.s3_available_points
-		return 0
-	
-	def season_stats_text(self, season):
-		return 'Total Points: {:,} | Available Points: {:,} | Wins: {} | Losses: {} | {}'.format(
-			self.season_total_points(season), 
-			self.season_available_points(season), 
-			self.season_wins(season), 
-			self.season_losses(season),
-			self.url)
+	def validate_bet(self, match_id, team, bet):
+		return self.db.query('CALL usp_sel_user_bet_validate(%s, %s, %s, %s)', (self.id, match_id, team, bet))[0]
 
-	def stats_embed(self, author, season):
-		embed = quickembed.general(author=author, desc='Season {}'.format(season), user=self)
-		embed.add_field(name='Wins', value=self.season_wins(season), inline=True)
-		embed.add_field(name='Losses', value=self.season_losses(season), inline=True)
-		embed.add_field(name='Ratio', value=self.season_winloss_ratio(season), inline=True)
-		embed.add_field(name='Total Points', value='{:,}'.format(self.season_total_points(season)), inline=True)
-		embed.add_field(name='Available Points', value='{:,}'.format(self.season_available_points(season)), inline=True)
+	def request_login_link(self):
+		token = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
+		self.db.query('CALL usp_upd_user_login_token(%s, %s, %s);', (self.id, self.username, token))
+		link = 'https://fancyjesse.com/projects/matches?uid={}&token={}'.format(self.id, token)
+		return link
+
+	def request_change_password_link(self):
+		temp_secret = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+		self.db.query('CALL usp_upd_user_temp_secret(%s, %s, %s);', (self.id, self.username, temp_secret))
+		link = 'https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches'.format(temp_secret, self.id, self.username)
+		return link
+
+class DiscordUser(_User, _DbHelper):
+	def __init__(self, author):
+		super().__init__()
+		self._author = author
+		self.fetch_info()
+
+	@property
+	def name(self):
+		return self._author.name
+
+	@property
+	def mention(self):
+		return self._author.mention
+
+	@property
+	def discord(self):
+		return self._author
+
+	def fetch_info(self):
+		rows = self.db.query('SELECT * FROM user WHERE discord_id=%s', (self.discord.id,))
+		if rows:
+			self.fill_info(rows[0])
+
+	def register(self):
+		pass
+
+	def stats_embed(self, season):
+		row = self.stats(season)
+		embed = quickembed.general(desc='Season {}'.format(season), user=self)
+		embed.add_field(name='Wins', value=row['wins'], inline=True)
+		embed.add_field(name='Losses', value=row['losses'], inline=True)
+		embed.add_field(name='Ratio', value=row['winloss_ratio'], inline=True)
+		embed.add_field(name='Total Points', value='{:,}'.format(row['total_points']), inline=True)
+		embed.add_field(name='Available Points', value='{:,}'.format(row['available_points']), inline=True)
 		return embed
 
+class ChatangoUser(_User, _DbHelper):
+	def __init__(self, author):
+		super().__init__()
+		self._author = author
+		self.fetch_info()
 
-class Superstar:
-	def __init__(self, row):
-		self.id = row['id']
-		self.name = row['name']
+	@property
+	def name(self):
+		return self._author.name
+
+	@property
+	def mention(self):
+		return '@{}'.format(self._author.name)
+
+	def fetch_info(self):
+		rows = self.db.query('SELECT * FROM user WHERE chatango_id=%s', (self._author.name,))
+		if rows:
+			self.fill_info(rows[0])
+
+	def register(self):
+		pass
+
+	def stats_text(self, season):
+		row = self.stats(season)
+		return 'Total Points: {:,} | Available Points: {:,} | Wins: {} | Losses: {} | {}'.format(
+			row['total_points'],
+			row['available_points'],
+			row['wins'],
+			row['losses'],
+			self.url)
+
+class Superstar(_Base, _DbHelper):
+	def __init__(self, id=None):
+		super().__init__(id=id)
+		self.fetch_info()
+
+	def fetch_info(self):
+		rows = self.query('CALL usp_sel_superstar_by_id(%s)', (self.id,))
+		if rows:
+			self.fill_info(rows[0])
+
+	def fill_info(self, row):
+		self._id = row['id']
+		self._name = row['name']
 		self.brand_id = row['brand_id']
 		self.height = row['height']
 		self.weight = row['weight']
 		self.hometown = row['hometown']
 		self.dob = row['dob']
+		self.age = row['age']
 		self.signature_move = row['signature_move']
 		self.page_url = row['page_url']
 		self.image_url = row['image_url']
@@ -125,27 +277,11 @@ class Superstar:
 		self.twitter_username = row['twitter_username']
 		self.last_updated = row['last_updated']
 
-	def calc_age(self):
-		today = datetime.now().date()
-		return today.year - self.dob.year - ((today.month, today.day) < (self.dob.month, self.dob.day))
-
-	def info_text_short(self):
-		name = self.name + ' ({})'.format(self.twitter_username) if self.twitter_username else ''
-		dob = 'DOB: {} ({})\n'.format(self.dob, self.calc_age()) if self.dob else ''
-		height = 'Height: {}\n'.format(self.height) if self.height else ''
-		weight = 'Weight: {}\n'.format(self.weight) if self.weight else ''
-		hometown = 'Hometown: {}\n'.format(self.hometown) if self.hometown else ''
-		signature_move = 'Signature Move(s): {}'.format(self.signature_move) if self.signature_move else ''
-		return '{}\n{}\n{}{}{}{}{}'.format(name,'-'*len(name),dob,height,weight,hometown,signature_move)
-
-	def info_text(self):
-		return '{}\n\n{}'.format(self.info_text_short(), self.bio)
-
 	def info_embed(self):
 		embed = discord.Embed(color=quickembed.color['blue'])
 		embed.set_author(name=self.name, url='https://fancyjesse.com/projects/matches/superstar?superstar_id={}'.format(self.id))
 		if self.dob:
-			embed.add_field(name='Age', value='{} ({})\n'.format(self.calc_age(), self.dob), inline=True)
+			embed.add_field(name='Age', value='{} ({})\n'.format(self.age, self.dob), inline=True)
 		if self.height:
 			embed.add_field(name='Height', value=self.height, inline=True)
 		if self.weight:
@@ -161,38 +297,10 @@ class Superstar:
 			embed.set_image(url=self.image_url)
 		return embed
 
-class Match:
-	def __init__(self, row):
-		self.id = row['id']
-		self.completed = row['completed']
-		self.pot_valid = row['pot_valid']
-		self.date = row['date']
-		self.event = row['event']
-		self.title = row['title']
-		self.contestants = row['contestants']
-		self.match_type = row['match_type']
-		self.match_note = row['match_note']
-		self.team_won = row['team_won']
-		self.winner_note = row['winner_note']
-		self.contestants_won = row['contestants_won']
-		self.contestants_lost = row['contestants_lost']
-		self.bet_open = row['bet_open']
-		self.bet_multiplier = row['bet_multiplier']
-		self.base_pot = row['base_pot']
-		self.total_pot = row['total_pot']
-		self.base_winner_pot = row['base_winner_pot']
-		self.base_loser_pot = row['base_loser_pot']
-		self.user_bet_cnt = row['user_bet_cnt']
-		self.user_bet_loser_cnt = row['user_bet_loser_cnt']
-		self.user_bet_winner_cnt = row['user_bet_winner_cnt']
-		self.user_rating_avg = row['user_rating_avg']
-		self.user_rating_cnt = row['user_rating_cnt']
-		self.teams = []
-		self.star_rating = ''.join(['★' if self.user_rating_avg>=i else '☆' for i in range(1,6)])
-		self.url = 'https://fancyjesse.com/projects/matches/matches?match_id={}'.format(self.id)
-
-	def __str__(self):
-		return self.id
+class Match(_Base, _DbHelper):
+	def __init__(self, id=None):
+		super().__init__(id=id)
+		self.fetch_info()
 
 	def set_teams(self, rows):
 		for r in rows:
@@ -214,12 +322,49 @@ class Match:
 				return t[0]
 		return False
 
-	def display_short(self):
-		return '{0.match_type} | {1}'.format(self,' vs '.join([t[2] for t in self.teams]))
+	def fill_info(self, row):
+		self._id = row['id']
+		self.completed = row['completed']
+		self.pot_valid = row['pot_valid']
+		self.bet_open = row['bet_open']
+		self.event = row['event']
+		self.date = row['date']
+		self.title = row['title']
+		self.match_type = row['match_type']
+		self.match_note = row['match_note']
+		self.team_won = row['team_won']
+		self.winner_note = row['winner_note']
+		self.contestants = row['contestants']
+		self.contestants_won = row['contestants_won']
+		self.contestants_lost = row['contestants_lost']
+		self.bet_multiplier = row['bet_multiplier']
+		self.base_pot = row['base_pot']
+		self.total_pot = row['total_pot']
+		self.base_winner_pot = row['base_winner_pot']
+		self.base_loser_pot = row['base_loser_pot']
+		self.user_bet_cnt = row['user_bet_cnt']
+		self.user_bet_loser_cnt = row['user_bet_loser_cnt']
+		self.user_bet_winner_cnt = row['user_bet_winner_cnt']
+		self.user_rating_avg = row['user_rating_avg']
+		self.user_rating_cnt = row['user_rating_cnt']
+		self.star_rating = ''.join(['★' if self.user_rating_avg>=i else '☆' for i in range(1,6)])
+		self.url = 'https://fancyjesse.com/projects/matches/matches?match_id={}'.format(self.id)
+		self.teams = {}
 
-	def display_full(self):
+	def fetch_info(self):
+		rows = self.query('CALL usp_sel_match_by_id(%s)', (self.id,))
+		if rows:
+			self.fill_info(rows[0])
+			team_rows = self.query('CALL usp_sel_match_teams(%s)', (self.id,))
+			for team_row in team_rows:
+				self.teams.update({team_row['team']:team_row})
+
+	def info_text_short(self):
+		return '{} | {}'.format(self.match_type, ' vs '.join([self.teams[t]['members'] for t in self.teams]))
+
+	def info_text(self):
 		if self.completed:
-			rating = '{0.star_rating} ({0.user_rating_avg:.3f})'.format(self)
+			rating = '{0.star_rating} ({0.user_rating_avg})'.format(self)
 			pot = '{0.base_pot:,} ({0.bet_multiplier}x) -> {0.total_pot:,}'.format(self)
 		else:
 			rating = ''
@@ -232,7 +377,7 @@ class Match:
 			match_detail = '({0.match_note})'.format(self)
 		else:
 			match_detail = ''
-		teams = '\n\t'.join('Team {}. ({}x) {}'.format(t[0], t[1], t[2]) for t in self.teams)
+		teams = '\n\t'.join('Team {}. ({}x) {}'.format(self.teams[t]['team'], self.teams[t]['bet_multiplier'], self.teams[t]['members']) for t in self.teams)
 		team_won = self.team_won if self.team_won else 'TBD'
 		winner_note = '({0.winner_note})'.format(self) if self.winner_note else ''
 		betting = 'Open' if self.bet_open else 'Closed'
@@ -244,15 +389,7 @@ class Match:
 		else:
 			header = '[Match {0.id}]'.format(self)
 		bet_status = 'Open' if self.bet_open else 'Closed'
-		teams = '\n'.join('{}. ({}x) {}'.format(t[0], t[1], t[2]) for t in self.teams)
-
-		#if self.bet_open:
-		#	color = quickembed.color['green']
-		#else:
-		#	if self.completed:
-		#		color = quickembed.color['black']
-		#	else:
-		#		color = quickembed.color['yellow']
+		teams = '\n'.join('{}. ({}x) {}'.format(self.teams[t]['team'], self.teams[t]['bet_multiplier'], self.teams[t]['members']) for t in self.teams)
 
 		color = quickembed.color['blue']
 		embed = discord.Embed(color=color)

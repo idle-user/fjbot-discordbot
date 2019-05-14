@@ -7,14 +7,13 @@ from bs4 import BeautifulSoup
 from discord.ext import commands
 import discord
 
-from utils import checks, credentials
+from utils import config, checks
 
 
 class Voice(commands.Cog):
-
 	def __init__(self, bot):
 		self.bot = bot
-		self.channel_voice = discord.Object(id=credentials.discord['channel']['voice'])
+		self.channel_voice = discord.Object(id=config.discord['channel']['voice'])
 		self.voice_client = False
 		self.player = False
 

@@ -1,28 +1,25 @@
 from discord.ext import commands
+import discord
 
-from utils import credentials
+from utils.fjclasses import DiscordUser, UserNotRegisteredError
 
 
-def confirm(m):
-	return m.content.upper() in ['Y','N']
+def is_registered():
+	async def predicate(ctx):
+		if not DiscordUser(ctx.author).is_registered():
+			raise UserNotRegisteredError('User not registered')
+		return True
+	return commands.check(predicate)
 
-def is_number(m):
-	return m.content.isdigit()
+def confirm(author):
+	def inner_check(ctx):
+		return author == ctx.author and ctx.content.upper() in ['Y','N']
+	return inner_check
 
-def is_owner_check(ctx):
-	return credentials.discord['owner_id'] == ctx.message.author.id
+def is_number(author):
+	def inner_check(ctx):
+		return author == ctx.author and ctx.content.isdigit()
+	return inner_check
 
-def is_admin_or_higher_check(ctx):
-	return credentials.discord['role']['admin'] in [role.id for role in ctx.message.author.roles] or is_owner_check(ctx)
-
-def is_mod_or_higher_check(ctx):
-	return credentials.discord['role']['mod'] in [role.id for role in ctx.message.author.roles] or is_admin_or_higher_check(ctx)
-
-def is_owner():
-	return commands.check(is_owner_check)
-
-def is_admin():
-	return commands.check(is_admin_or_higher_check)
-
-def is_mod():
-	return commands.check(is_mod_or_higher_check)
+def is_dm(ctx):
+	return isinstance(ctx.channel, discord.DMChannel)
