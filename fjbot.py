@@ -50,8 +50,6 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_message(ctx):
-	if ctx.guild.id != 565762640589094933:
-		return
 	if ctx.author.bot or not ctx.content.startswith(config.general['command_prefix']):
 		return
 	res = _DbHelper().chatroom_command(ctx.content.split(' ')[0])
