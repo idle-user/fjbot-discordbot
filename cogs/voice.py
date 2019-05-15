@@ -1,111 +1,126 @@
-import json
 import asyncio
-import unicodedata
-import requests
-from bs4 import BeautifulSoup
 
 from discord.ext import commands
 import discord
+import youtube_dl
 
-from utils import config, checks
+from utils.fjclasses import DiscordUser
+from utils import config, checks, quickembed
 
+
+youtube_dl.utils.bug_reports_message = lambda: ''
+ytdl_format_options = {
+	'format': 'bestaudio/best',
+	'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+	'restrictfilenames': True,
+	'noplaylist': True,
+	'nocheckcertificate': True,
+	'ignoreerrors': False,
+	'logtostderr': False,
+	'quiet': True,
+	'no_warnings': True,
+	'default_search': 'auto',
+	'source_address': '0.0.0.0'
+}
+ffmpeg_options = {
+	'options': '-vn'
+}
+ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+
+class YTDLSource(discord.PCMVolumeTransformer):
+	def __init__(self, source, *, data, volume=0.5):
+		super().__init__(source, volume)
+		self.data = data
+		self.title = data.get('title')
+		self.url = data.get('url')
+
+	@classmethod
+	async def from_url(cls, url, *, loop=None, stream=False):
+		loop = loop or asyncio.get_event_loop()
+		data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+		if 'entries' in data:
+			# take first item from a playlist
+			data = data['entries'][0]
+		filename = data['url'] if stream else ytdl.prepare_filename(data)
+		return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 class Voice(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.channel_voice = discord.Object(id=config.discord['channel']['voice'])
-		self.voice_client = False
-		self.player = False
 
-	def __unload(self):
-		if self.player:
-			self.player.stop()
+	@commands.command()
+	@checks.is_registered()
+	async def join(self, ctx, *, channel: discord.VoiceChannel):
+		if ctx.voice_client is not None:
+			return await ctx.voice_client.move_to(channel)
+		await channel.connect()
 
-	@commands.command(name='vcjoin', hidden=True)
-	@checks.is_admin()
-	async def join_channel(self, ctx):
-		await ctx.message.delete()
-		if not self.voice_client:
-			self.voice_client = await self.bot.join_voice_channel(self.channel_voice)
+	@commands.command(name='playlocal')
+	@commands.is_owner()
+	async def play_local(self, ctx, *, query):
+		source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(query))
+		ctx.voice_client.play(source, after=lambda e: print('Player error: %s' % e) if e else None)
+		await ctx.send('Now playing: {}'.format(query))
+		await ctx.send(embed=quickembed.info(desc='Now playing: {}'.format(query), user=DiscordUser(ctx.author)))
 
-	@commands.command(name='vcleave', hidden=True)
-	@checks.is_mod()
-	async def leave_channel(self, ctx):
-		await ctx.message.delete()
-		if self.player:
-			self.player.stop()
-		if self.voice_client:
-			await self.voice_client.disconnect()
+	@commands.command(name='play', aliases=['yt'])
+	@checks.is_registered()
+	async def play_yt(self, ctx, *, url):
+		async with ctx.typing():
+			player = await YTDLSource.from_url(url, loop=self.bot.loop)
+			ctx.voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
+		await ctx.send(embed=quickembed.info(desc='Now playing: {}'.format(player.title), user=DiscordUser(ctx.author)))
 
-	async def play_audio(self, voice_channel, player):
-		self.player = player
-		solo_time = 0
-		solo_limit = 30
-		self.player.start()
-		self.player.volume = 0.25
-		while self.player and not self.player.is_done():
-			await asyncio.sleep(1)
-			if len(voice_channel.voice_members)==1:
-				solo_time = solo_time + 1
-			else:
-				solo_time = 0
-			if solo_time > solo_limit:
-				self.bot.log('Stopping Audio. Idle Rule.')
-				self.player.stop()
-				break
-
-		if self.voice_client and len(voice_channel.voice_members)==1:
-			self.bot.log('Leaving Voice Channel. Idle Rule.')
-			await self.voice_client.disconnect()
-			self.voice_client = False
-		self.player = False
-
-
-	async def yt_search_info(self, keyword):
-		yt_base = 'youtube.com/watch?v='
-		if yt_base not in keyword:
-			response = requests.get('https://www.youtube.com/results?search_query={}'.format(keyword))
-			if response.status_code == 200:
-				url = BeautifulSoup(response.text, 'html.parser').find(attrs={'class':'yt-uix-tile-link'})['href']
-			else:
-				return False
-		else:
-			url = keyword
-		video_id = url.split('?v=')[1].split('&')[0]
-		response = requests.get('https://www.youtube.com/oembed?url={}{}&format=json'.format(yt_base, video_id))
-		if response.status_code == 200:
-			yt_info = json.loads(response.text)
-			yt_info['title'] = unicodedata.normalize('NFD', yt_info['title']).encode('ascii', 'ignore').decode('utf-8').strip()
-			yt_info['url'] = 'https://www.youtube.com/watch?v={}'.format(video_id)
-			return yt_info
-		else:
-			return False
-
-	@commands.command(name='play', hidden=True)
-	@checks.is_mod()
-	async def play(self, ctx, *, message:str):
-		self.bot.log('Play Command: [{}] {}'.format(ctx.message.author, message))
-		await ctx.message.delete()
-		vc = discord.utils.get(ctx.message.server.channels, id=self.channel_voice.id)
-		yt_info = await self.yt_search_info(message)
-		if not yt_info:
-			return False
-		if not self.voice_client:
-			self.voice_client = await self.bot.join_voice_channel(vc)
-		self.bot.log('Downloading "{}" - {} ...'.format(yt_info['title'], yt_info['url']))
-		player = await self.voice_client.create_ytdl_player(yt_info['url'])
-		if self.player:
-			self.player.stop()
-		self.player = player
-		await self.play_audio(vc, self.player)
+	@commands.command(name='stream')
+	@checks.is_registered()
+	async def stream_yt(self, ctx, *, url):
+		async with ctx.typing():
+			player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
+			ctx.voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
+		await ctx.send(embed=quickembed.info(desc='Now playing: {}'.format(player.title), user=DiscordUser(ctx.author)))
 
 	@commands.command(name='volume')
-	@checks.is_mod()
-	async def volume(self, ctx, value:int):
-		await ctx.message.delete()
-		if self.player and not self.player.is_done():
-			self.player.volume = value / 100
-			self.bot.log('Voice volume set to {:.0%}'.format(self.player.volume))
+	@checks.is_registered()
+	async def change_volume(self, ctx, volume: int):
+		user = DiscordUser(ctx.author)
+		if ctx.voice_client is None:
+			return await ctx.send(embed=quickembed.error(desc='Not connected to a voice channel', user=user))
+		ctx.voice_client.source.volume = volume / 100
+		await ctx.send(embed=quickembed.info(desc='Changed volume to {}%'.format(volume), user=user))
+	
+	@commands.command(name='vstop')
+	@checks.is_registered()
+	async def stop_audio(self, ctx):
+		if ctx.voice_client:
+			await ctx.voice_client.disconnect()
+			await ctx.send(embed=quickembed.info(desc=':mute: Stopped the party :mute:', user=DiscordUser(ctx.author)))
+
+	@commands.command(name='vpause')
+	@checks.is_registered()
+	async def pause_audio(self, ctx):
+		if ctx.voice_client and ctx.voice_client.is_playing():
+			ctx.voice_client.pause()
+			await ctx.send(embed=quickembed.info(desc=':mute: Paused the party :mute:', user=DiscordUser(ctx.author)))
+
+	@commands.command(name='vresume')
+	@checks.is_registered()
+	async def resume_audio(self, ctx):
+		if ctx.voice_client and ctx.voice_client.is_paused():
+			ctx.voice_client.resume()
+			await ctx.send(embed=quickembed.info(desc=':musical_note: Resumed the party :musical_note:', user=DiscordUser(ctx.author)))
+
+	@play_local.before_invoke
+	@play_yt.before_invoke
+	@stream_yt.before_invoke
+	async def ensure_voice(self, ctx):
+		if ctx.voice_client is None:
+			if ctx.author.voice:
+				await ctx.author.voice.channel.connect()
+			else:
+				await ctx.send(embed=quickembed.error(desc='You must be in a voice channel to use that command', user=DiscordUser(ctx.author)))
+				raise commands.CommandError('Author not connected to a voice channel')
+		elif ctx.voice_client.is_playing():
+			ctx.voice_client.stop()
 
 def setup(bot):
 	bot.add_cog(Voice(bot))

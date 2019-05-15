@@ -177,7 +177,7 @@ class _User(_Base):
 		link = 'https://fancyjesse.com/projects/matches?uid={}&token={}'.format(self.id, token)
 		return link
 
-	def request_change_password_link(self):
+	def request_reset_password_link(self):
 		temp_secret = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
 		self.db.query('CALL usp_upd_user_temp_secret(%s, %s, %s);', (self.id, self.username, temp_secret))
 		link = 'https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches'.format(temp_secret, self.id, self.username)

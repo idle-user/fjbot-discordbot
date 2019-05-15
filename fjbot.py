@@ -36,7 +36,9 @@ async def on_command_error(ctx, error):
 	msg = None
 	if isinstance(error, commands.CommandNotFound):
 		return
-	elif isinstance(error, checks.UserNotRegisteredError):
+	elif isinstance(error, commands.CommandError):
+		raise error
+	elif isinstance(error, UserNotRegisteredError):
 		msg = 'Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link to your existing account.'
 	elif isinstance(error, commands.CommandInvokeError):
 		if isinstance(error.original, asyncio.TimeoutError):
@@ -44,12 +46,12 @@ async def on_command_error(ctx, error):
 	if msg:
 		await ctx.send(embed=quickembed.error(desc=msg, user=DiscordUser(ctx.author)))
 	else:
-		#await ctx.reinvoke()
 		raise error
 
 @bot.event
 async def on_message(ctx):
-	return
+	if ctx.guild.id != 565762640589094933:
+		return
 	if ctx.author.bot or not ctx.content.startswith(config.general['command_prefix']):
 		return
 	res = _DbHelper().chatroom_command(ctx.content.split(' ')[0])
@@ -58,7 +60,7 @@ async def on_message(ctx):
 	else:
 		tokens = ctx.content.split(' ')
 		ctx.content = '{} {}'.format(tokens[0].lower(), ' '.join(tokens[1:]))
-		await bot.process_commands(ctx)
+	await bot.process_commands(ctx)
 
 @bot.event
 async def on_ready():

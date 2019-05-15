@@ -45,7 +45,7 @@ sudo python3.7 -m pip install --upgrade pip
 
 Install required Python3.7.3 packages for FJBot
 ```
-sudo python3.7 -m pip install discord mysqlclient tweepy bs4 ffmpeg
+sudo python3.7 -m pip install discord PyNaCl mysqlclient tweepy bs4 ffmpeg
 ```
 
 Set alias [optional]

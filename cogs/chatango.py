@@ -35,32 +35,32 @@ class Chatango(commands.Cog):
 			self.setFontColor('000099')
 			self.setFontFace('Times')
 			self.setFontSize(14)
-		
+
 		def onMessage(self, room, author, message):
 			if 'fjbot' in message.body.lower():
 				msg = '[{}] {}: {}'.format(room.name, author.name, message.body)
 				self.buffer.append(msg)
 			self.message_handler(author, message.body)
 			# room.message('@{}, {}'.format(author.name, msg))
-		
+
 		def onPMMessage(self, pm, author, message):
 			msg = '[PM] {}: {}'.format(author.name, message)
 			self.buffer.append(msg)
 			self.message_handler(author, message)
-		
+
 		def onFloodWarning(self, room):
 			self.bot.log('```\n[chatango] onFloodWarning:{}\n```'.format(room))
-		
+
 		def onFloodBan(self, room):
 			self.bot.log('```\n[chatango] onFloodBan:{}\n```'.format(room))
-		
+
 		def sendRoomMessage(self, room, msg):
 			room = self.getRoom(room)
 			if room:
 				room.message(msg)
 				return True
 			return False
-		
+
 		def sendUserMessage(self, user, msg):
 			try:
 				if sys.getsizeof(msg) > 800:
@@ -73,7 +73,7 @@ class Chatango(commands.Cog):
 					self.pm.message(ch.User(user.name), msg)
 			except:
 				self.bot.log('```\n[chatango] Failed to PM User:{}\n```'.format(user.name))
-		
+
 		def message_handler(self, author, message):
 			if author.name==self.name.lower() or not message.startswith('!'):
 				return
@@ -94,8 +94,9 @@ class Chatango(commands.Cog):
 			if cmd == '!register':
 				msg = self.register(user)
 			elif cmd == '!login':
-				msg = self.login_link(user)			elif cmd == '!help':
-				msg = '!resetpw - Get a temporary password for the website | !rate - Rate the current match | !mypoints - View your Match Points | !bet - Bet on a current match with your Match Points | !rumble - Get an entry number the Royal Rumble | !commands - get a list of other commands'
+				msg = self.login_link(user)
+			elif cmd == '!help':
+				msg = '!login - Login link | !resetpw - Change password | !rate - Rate the current match | !stats - View your stats | !bet - Bet points on a current Match | !rumble - Get your entry number for the Royal Rumble (seasonal)'
 			elif cmd == '!resetpw':
 				msg = self.reset_pw(user)
 			elif cmd in ['!mypoints', '!points', '!mystats', '!stats']:
@@ -110,12 +111,14 @@ class Chatango(commands.Cog):
 				msg = self.open_matches(user)
 			else:
 				res = user.chatroom_command(cmd)
-				if res:
-					msg = res['response']
+				if res['success']:
+					msg = res['message']
 					if('@mention' in res): msg = msg.replace('@mention', user.mention)
+				else:
+					msg = 'Command not found for `{}`. Use !help to get a list of commands.'.format(cmd)
 			if msg:
 				self.sendUserMessage(user._author, msg)
-		
+
 		def register(self, user):
 			if user.is_registered():
 				return '{}, you are already registered. Use `!help` to get a list of commands'.format(user.mention)
@@ -126,27 +129,27 @@ class Chatango(commands.Cog):
 			else:
 				self.bot.log('```\n[chatango] Failed to register: `{}`\n```'.format(user.name))
 				return row['message']
-		
+
 		def login_link(self, user):
 			link = user.request_login_link()
 			self.bot.log('```\n[chatango] `{}` requested a login link\n```'.format(user.name))
 			return '{} (link expires in 5 minutes)'.format(link)
 
 		def reset_pw(self, user):
-			link = user.request_change_password_link()
+			link = user.request_reset_password_link()
 			self.bot.log('```\n[chatango] `{}` requested a change password link\n```'.format(user.name))
 			return '{} (Link will expire in 30 minutes)'.format(link)
-		
+
 		def rate_match(self, user, args=[]):
 			if not args:
 				return 'Missing a valid rating. Command: !rate [number]'
 			try:
 				rating = float(args[0])
 			except:
-				return 'Not a valid rating'			
+				return 'Not a valid rating'
 			rows = user.search_match_by_recent_completed()
 			if not rows:
-				return 'No Current Match set for rating.'
+				return 'No current match set to rate'
 			match = Match(id=rows[0].id)
 			res = user.rate_match(match.id, rating)
 			if res['success']:
@@ -154,13 +157,13 @@ class Chatango(commands.Cog):
 				return '{} Star Match rating received for: {}'.format(rating, match.info_text_short())
 			else:
 				return res['message']
-		
+
 		def bet_match(self, user, args=[]):
 			pass
-		
+
 		def royalrumble_entry(self, user, args=[]):
 			pass
-		
+
 		def open_matches(self, user):
 			rows = user.search_match_by_open_bets()
 			if rows:
@@ -175,11 +178,13 @@ class Chatango(commands.Cog):
 
 	async def chatango_bot_task(self):
 		await self.bot.wait_until_ready()
+		print('[{}] Chatango Bot: START'.format(datetime.now()))
 		executor = ThreadPoolExecutor()
 		t_stream = Thread(target=self.start_chbot)
 		await self.bot.loop.run_in_executor(executor, t_stream.start)
 		await self.bot.loop.run_in_executor(executor, t_stream.join)
-		self.bot.log('```\nchatango_bot_task: END\n```')
+		print('[{}] Chatango `{}`: END'.format(datetime.now(), chbot.name))
+		await self.chatango_bot_task()
 
 	async def wait_until_chbot_running(self, limit=30):
 		while limit > 0:
@@ -196,7 +201,6 @@ class Chatango(commands.Cog):
 		await self.wait_until_chbot_running()
 		chbot.bot = self.bot
 		channel_chatango = self.bot.get_channel(config.discord['channel']['chatango'])
-		print('[{}] Chatango {}: START'.format(datetime.now(), chbot.name))
 		self.bot.log('```\nchatango_log_task: START\n```')
 		while not self.bot.is_closed() and chbot._running:
 			while chbot.buffer:

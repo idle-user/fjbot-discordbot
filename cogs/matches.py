@@ -11,7 +11,6 @@ from utils import config, checks, quickembed
 class Matches(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.current_match = None
 		self.bot.loop.create_task(self.showtime_schedule_task())
 
 	async def showtime_schedule_task(self):
@@ -42,81 +41,18 @@ class Matches(commands.Cog):
 				await asyncio.sleep(event_length_timer)
 		self.bot.log('```\nshowtime_schedule_task\nEND\n```')
 
-	@commands.Cog.listener()
-	async def on_member_join(self, member):
-		channel = member.guild.system_channel
-		role = self.bot.get_role(config.discord['role']['default'])
-		await member.add_roles(role)
-		await channel.send('Welcome to {}, {}! Say hi!'.format(member.guild.name, member.mention))
-
-	@commands.command(name='ratestart')
-	@commands.has_any_role(config.discord['role']['admin'], config.discord['role']['mod'])
-	async def start_match_rating(self, ctx, match_id:str=None):
-		owner = ctx.guild.get_member(config.discord['owner_id'])
+	@commands.command(name='lastmatch', aliases=['ratestart'])
+	async def recent_match_info(self, ctx):
 		user = DiscordUser(ctx.author)
-		if user.access<2:
-			msg = '{}\n[#{}] {}: {}'.format('Invalid Command', ctx.channel, ctx.author, ctx.content)
-			embed = quickembed.error(desc=msg, user=user)
-			await owner.send(embed=embed)
-			return
-
-		try:
-			if not match_id:
-				match_id = self.dbhandler.latest_match()['id']
-			match_id = int(match_id)
-		except:
-			msg = 'Invalid `!ratestart` format.'
-			embed = quickembed.error(desc=msg, user=user)
-			self.bot.log(embed=embed)
-			return
-
-		m = self.dbhandler.match(match_id)
-		if m:
-			msg = '```[Y/N]\nStart Rating on [{} | {}]?```'.format(m.match_type, m.contestants)
-			message = await ctx.send(embed=quickembed.question(desc=msg, user=user))
-			confirm = await self.bot.wait_for('message', check=checks.confirm(ctx.author), timeout=15.0)
-			confirm.content = confirm.content.upper()
-			if confirm.content=='Y':
-				self.current_match = m
-				embed = discord.Embed(title='Match Rating has Begun!',
-					url='https://fancyjesse.com/projects/matches/matches?match_id={}'.format(match_id),
-					description='Use command `!rate [number]` to give a star rating.',
-					color=0x0080ff)
-				embed.add_field(name='Event', value=m.event, inline=True)
-				if m.title:
-					embed.add_field(name='Title', value=m.title, inline=True)
-				embed.add_field(name='Type', value=m.match_type, inline=True)
-				embed.add_field(name='Contestants', value=m.contestants, inline=True)
-				embed.add_field(name='Winner(s)', value=m.contestants_won, inline=True)
-				self.bot.log('!ratestart ({})'.format(ctx.author.name), embed=embed)
-				await ctx.send(embed=embed)
-			else:
-				msg = '`!ratestart` Match `{}` - Cancelled'.format(match_id)
-				self.bot.log(embed=quickembed.error(desc=msg, user=user))
+		rows = user.search_match_by_recent_completed()
+		if rows:
+			embed = Match(rows[0].id).info_embed()
 		else:
-			msg = '`!ratestart` Match `{}` not found'.format(match_id)
-			self.bot.log(embed=quickembed.error(desc=msg, user=user))
-
-	@commands.command(name='rateend')
-	@commands.has_any_role(config.discord['role']['admin'], config.discord['role']['mod'])
-	async def end_match_rating(self, ctx):
-		user = DiscordUser(ctx.author)
-		if user.access<2:
-			msg = '!rateend - Insufficient access'
-			self.bot.log(embed=quickembed.general(desc=msg, user=user))
-			return
-		if self.current_match:
-			match_id = self.current_match.id
-			self.current_match = {}
-			m = self.dbhandler.match(match_id)
-			msg = 'Match Rating has ended.\nReceived a total of {0.star_rating} ({0.user_rating_avg:.3f}).\n[{0.match_type} | {0.contestants}]'.format(m)
-			await ctx.send(embed=quickembed.general(desc=msg, user=user))
-		else:
-			msg = '!rateend - No current match set.'
-			self.bot.log(embed=quickembed.general(desc=msg, user=user))
+			embed = quickembed.error(desc='No match found', user=user)
+		await ctx.send(embed=embed)
 
 	@commands.command(name='id')
-	async def send_userid(self, ctx):
+	async def send_discordid(self, ctx):
 		user = DiscordUser(ctx.author)
 		msg = 'Your discord_id is: `{}`\nLink it to your http://matches.fancyjesse.com profile.'.format(user.discord.id)
 		embed = quickembed.general(desc=msg, user=user)
@@ -147,7 +83,7 @@ class Matches(commands.Cog):
 
 	@commands.command(name='login')
 	@checks.is_registered()
-	async def user_quick_login(self, ctx):
+	async def user_login_link(self, ctx):
 		user = DiscordUser(ctx.author)
 		link = user.request_login_link()
 		msg = 'Quick login link for you! (link expires in 5 minutes)\n<{}>'.format(link)
@@ -155,7 +91,17 @@ class Matches(commands.Cog):
 		embed=quickembed.success(user=user, desc='Login link DMed')
 		await ctx.send(embed=embed)
 
-	@commands.command(name='events', aliases=['ppv','ppvs'])
+	@commands.command(name='resetpw')
+	@checks.is_registered()
+	async def user_reset_password_link(self, ctx):
+		user = DiscordUser(ctx.author)
+		link = user.request_reset_password_link()
+		msg = '<{}>\n(link expires in 5 minutes)'.format(link)
+		await ctx.author.send(embed=quickembed.general(desc=msg, user=user))
+		embed=quickembed.success(user=user, desc='Link DMed')
+		await ctx.send(embed=embed)
+
+	@commands.command(name='events', aliases=['ppv', 'ppvs'])
 	async def upcomming_events(self, ctx):
 		user = DiscordUser(ctx.author)
 		ppvs = user.future_events(ppv_check=1)
@@ -183,7 +129,7 @@ class Matches(commands.Cog):
 				except:
 					embed = quickembed.error(desc='Invalid index', user=user)
 			else:
-				embed = Superstar(superstar_list[0].id).info_embed()	
+				embed = Superstar(superstar_list[0].id).info_embed()
 		await ctx.send(embed=embed)
 
 	@commands.command(name='birthdays')
@@ -194,7 +140,7 @@ class Matches(commands.Cog):
 		embed.add_field(name='\u200b', value='{}'.format('\n'.join(['[{}] - {}'.format(b['dob'],b['name']) for b in bdays])))
 		await ctx.send(embed=embed)
 
-	@commands.command(name='leaderboard_s1', aliases=['top1'])
+	@commands.command(name='leaderboard1', aliases=['top1'])
 	async def leaderboard_season1(self, ctx):
 		user = DiscordUser(ctx.author)
 		lb = user.leaderboard(season=1)
@@ -207,7 +153,7 @@ class Matches(commands.Cog):
 		embed.add_field(name='\u200b', value='\n'.join(lb) if lb else 'Nothing found', inline=True)
 		await ctx.send(embed=embed)
 
-	@commands.command(name='leaderboard_s2', aliases=['top2'])
+	@commands.command(name='leaderboard2', aliases=['top2'])
 	async def leaderboard_season2(self, ctx):
 		user = DiscordUser(ctx.author)
 		lb = user.leaderboard(season=2)
@@ -220,7 +166,7 @@ class Matches(commands.Cog):
 		embed.add_field(name='\u200b', value='\n'.join(lb) if lb else 'Nothing found', inline=True)
 		await ctx.send(embed=embed)
 
-	@commands.command(name='leaderboard_s3', aliases=['top', 'leaderboard', 'top3'])
+	@commands.command(name='leaderboard3', aliases=['top', 'leaderboard', 'top3'])
 	async def leaderboard_season3(self, ctx):
 		user = DiscordUser(ctx.author)
 		lb = user.leaderboard(season=3)
@@ -236,6 +182,7 @@ class Matches(commands.Cog):
 	# TODO
 	@commands.command(name='titles', aliases=['champions','champs'])
 	async def current_champions(self, ctx):
+		return
 		user = DiscordUser(ctx.author)
 		ts = self.dbhandler.titles()
 		embed = discord.Embed(title='Current Champions',
@@ -250,6 +197,7 @@ class Matches(commands.Cog):
 	@commands.command(name='rumble')
 	@commands.is_owner()
 	async def rumble_info(self, ctx):
+		return
 		await ctx.send('Join the Rumble at: https://fancyjesse.com/projects/matches/royalrumble')
 		user = DiscordUser(ctx.author)
 		if user:
@@ -260,22 +208,22 @@ class Matches(commands.Cog):
 			msg = 'Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link to your existing account.'
 			await ctx.send(embed=quickembed.error(desc=msg, user=user))
 
-	@commands.command(name='stats3', aliases=['stats', 'balance', 'bal', 'points', 'wins', 'losses', 'profile', 'mypage', 's3stats'])
+	@commands.command(name='stats3', aliases=['stats', 'balance', 'bal', 'points', 'wins', 'losses', 'profile', 'mypage'])
 	@checks.is_registered()
 	async def user_stats_season3(self, ctx):
 		await ctx.send(embed=DiscordUser(ctx.author).stats_embed(season=3))
 
-	@commands.command(name='stats2', aliases=['s2stats'])
+	@commands.command(name='stats2', aliases=['points2', 'bal2'])
 	@checks.is_registered()
 	async def user_stats_season2(self, ctx):
 		await ctx.send(embed=DiscordUser(ctx.author).stats_embed(season=2))
 
-	@commands.command(name='stats1', aliases=['s1stats'])
+	@commands.command(name='stats1', aliases=['points1', 'bal1'])
 	@checks.is_registered()
 	async def user_stats_season1(self, ctx):
 		await ctx.send(embed=DiscordUser(ctx.author).stats_embed(season=1))
 
-	@commands.command(name='bets', aliases=['currentbets'])
+	@commands.command(name='bets', aliases=['currentbets', 'mybets'])
 	@checks.is_registered()
 	async def user_current_bets(self, ctx):
 		user = DiscordUser(ctx.author)
@@ -363,26 +311,35 @@ class Matches(commands.Cog):
 	async def rate_match(self, ctx, *args):
 		user = DiscordUser(ctx.author)
 		try:
-			if self.current_match:
-				match_id = self.current_match.id
+			if len(args)==1:
+				match_id = None
 				rating = float(args[0])
 			else:
 				match_id = int(args[0])
 				rating = float(args[1])
 		except:
-			msg = 'Invalid `!rate` format.\n`!rate [match_id] [rating]`'
+			msg = 'Invalid `!rate` format.\n`!rate [rating]` (rates last match)\n`!rate [match_id] [rating]`'
 			embed = quickembed.error(desc=msg, user=user)
 			await ctx.send(embed=embed)
 			return
+		if not match_id:
+			rows = user.search_match_by_recent_completed()
+			if not rows:
+				msg = 'No current match set to rate'
+				embed = quickembed.error(desc=msg, user=user)
+				await ctx.send(embed=embed)
+				return
+			match_id = rows[0].id
 		response = user.rate_match(match_id, rating)
 		if response['success']:
+			match = Match(match_id)
 			stars = ''
 			for i in range(1,6):
 				if rating>=i:
 					stars += '★'
 				else:
 					stars += '☆'
-			msg = 'Rated `Match {}` {} ({})'.format(match_id, stars, rating)
+			msg = 'Rated `Match {}` {} ({})\n{}'.format(match_id, stars, rating, match.info_text_short())
 			embed = quickembed.success(desc=msg, user=user)
 		else:
 			msg = response['message']
