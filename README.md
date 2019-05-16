@@ -83,6 +83,7 @@ python3.7 bot.py
 * Updated imports of all files
 * Added a new error class for future use
 * Removed unecessary log messages (moving to logging later)
+* Added base royal rumble support
 * Updated README structure and setup instructions
 * Added 2019.05.14 updates because it mysteriously disappeared
 * Still to be updated: twitter.py 

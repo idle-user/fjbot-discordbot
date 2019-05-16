@@ -1,5 +1,6 @@
 # fjbot
 config.py
+screenlog*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
