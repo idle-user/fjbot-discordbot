@@ -1,6 +1,6 @@
 # mysql
 mysql = {
-	'host' : '
+	'host' : '',
 	'db' : '',
 	'user' : '',
 	'secret' : ''
