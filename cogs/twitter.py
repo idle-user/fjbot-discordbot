@@ -6,7 +6,9 @@ from discord.ext import commands
 import discord
 import tweepy
 
-from utils import config, checks
+from utils.fjclasses import DiscordUser
+from utils import checks, quickembed
+import config
 
 
 class Twitter(commands.Cog):

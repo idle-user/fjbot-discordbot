@@ -6,8 +6,10 @@ import asyncio
 from discord.ext import commands
 import discord
 
-from utils.fjclasses import _DbHelper, UserNotRegisteredError, DiscordUser
-from utils import config, checks, quickembed
+import config
+from utils.fjclasses import DbHelper, DiscordUser
+from utils.fjclasses import UserNotRegisteredError, GuildNotOriginError
+from utils import quickembed
 
 
 bot = discord.ext.commands.Bot(
@@ -35,11 +37,16 @@ async def pm_owner(content=None, embed=None):
 async def on_command_error(ctx, error):
 	msg = None
 	if isinstance(error, commands.CommandNotFound):
+		print('CommandNotFound: {0} - {1.guild.name}({1.guild.id}) - {1.author}'.format(error, ctx))
 		return
-	elif isinstance(error, commands.CommandError):
-		raise error
+	elif isinstance(error, GuildNotOriginError):
+		print('GuildNotOriginError: {.command} - {.guild.name}(.guild.id) - {.author}'.format(ctx))
+		return
 	elif isinstance(error, UserNotRegisteredError):
 		msg = 'Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link to your existing account.'
+	elif isinstance(error, commands.CommandError):
+		print('CommandError: {0} - {1.guild.name}({1.guild.id}) - {1.author} - {1.command}'.format(error, ctx))
+		return		
 	elif isinstance(error, commands.CommandInvokeError):
 		if isinstance(error.original, asyncio.TimeoutError):
 			msg = 'Took too long to confirm. Try again.'
@@ -50,9 +57,12 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_message(ctx):
-	if ctx.author.bot or not ctx.content.startswith(config.general['command_prefix']):
+	if ctx.author.bot:
 		return
-	res = _DbHelper().chatroom_command(ctx.content.split(' ')[0])
+	if not ctx.content.startswith(config.general['command_prefix']):
+		return
+	#if ctx.content.startswith('/')
+	res = DbHelper().chatroom_command(ctx.content.split(' ')[0])
 	if res['success']:
 		await ctx.channel.send(res['message'].replace('@mention', ctx.author.mention))
 	else:

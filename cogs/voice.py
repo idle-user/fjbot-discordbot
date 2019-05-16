@@ -5,8 +5,8 @@ import discord
 import youtube_dl
 
 from utils.fjclasses import DiscordUser
-from utils import config, checks, quickembed
-
+from utils import checks, quickembed
+import config
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 ytdl_format_options = {
@@ -63,7 +63,7 @@ class Voice(commands.Cog):
 		await ctx.send('Now playing: {}'.format(query))
 		await ctx.send(embed=quickembed.info(desc='Now playing: {}'.format(query), user=DiscordUser(ctx.author)))
 
-	@commands.command(name='play', aliases=['yt'])
+	@commands.command(name='play', aliases=['yt', 'vplay'])
 	@checks.is_registered()
 	async def play_yt(self, ctx, *, url):
 		async with ctx.typing():
@@ -87,7 +87,7 @@ class Voice(commands.Cog):
 			return await ctx.send(embed=quickembed.error(desc='Not connected to a voice channel', user=user))
 		ctx.voice_client.source.volume = volume / 100
 		await ctx.send(embed=quickembed.info(desc='Changed volume to {}%'.format(volume), user=user))
-	
+
 	@commands.command(name='vstop')
 	@checks.is_registered()
 	async def stop_audio(self, ctx):

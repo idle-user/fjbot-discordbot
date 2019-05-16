@@ -4,23 +4,27 @@
 [![status](https://img.shields.io/badge/Project%20Status-work--in--progress-green.svg)](#)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jesus_andrade45%40yahoo%2ecom&lc=US&item_name=GitHub%20Projects&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
 
-A Discord bot with focus on wrestling events and [Matches](https://fancyjesse.com/projects/matches).
+A Discord bot with focus on wrestling events and  [Matches](https://fancyjesse.com/projects/matches).
 
 **Discord Server:** [WatchWrestling](https://discord.gg/Q9mX5hQ)
 
 
 ## Introduction
 
-This Discord Bot was originally created for a Discord Server back in 2017. It was made with the focus to integrate [Matches](https://fancyjesse.com/projects/matches) into the Server. This allows Users to bet and rate matches, look up Superstar biographies, share gifs, and be alerted of upcomming wrestling events. 
+This Discord Bot was originally created back in 2017 to integrate [Matches](https://fancyjesse.com/projects/matches) into the server. This allows users to bet and rate matches, look up Superstar biographies, share gifs, and be alerted of upcomming wrestling events. 
 
-Originally, this bot was handled through a single Python file. I had no idea that I would still be supporting the bot this long or even begin scaling it to include additonal features and commands. Because of the expansion of the bot, I decided to transition this Discord Bot project to use cogs. Made code management a whole lot easier.
-
-## Prerequisites
-
-Python3
+Originally, this bot ran through a single Python file. I had no idea that I would still be supporting the bot this long or even begin scaling it to include additonal features and commands. Because of the expansion of the bot, I decided to transition this Discord Bot project to use cogs. Made code management a whole lot easier.
+Now I continue support on the bot as a hobby and development experience.
 
 
-## Installing
+## Bot Sample
+
+TODO
+
+
+## Development Setup
+
+*Using Python3.7.3 for this example. Your version might differ*
 
 Update and install required libraries for Python3.7.3
 ```
@@ -45,7 +49,7 @@ sudo python3.7 -m pip install --upgrade pip
 
 Install required Python3.7.3 packages for FJBot
 ```
-sudo python3.7 -m pip install discord PyNaCl mysqlclient tweepy bs4 ffmpeg
+sudo python3.7 -m pip install discord PyNaCl mysqlclient tweepy
 ```
 
 Set alias [optional]
@@ -53,13 +57,42 @@ Set alias [optional]
 sudo ln -s /usr/bin/python3.7 /usr/bin/python3
 ```
 
+Clone repository
+```
+git clone https://github.com/FancyJesse/fjbot.git
+```
 
-## Bot Example
+Setup bot configuration
+```
+./FJBot/config.py
+```
 
-TODO
+Run bot
+```
+python3.7 bot.py
+```
 
 
-## Release History
+## Update History
+
+2019.05.15
+* Renamed fjbot.py to bot.py
+* Updated admin commands
+* Moved base user commands from matches cog to member cog
+* Moved config.py to root
+* Updated imports of all files
+* Added a new error class for future use
+* Removed unecessary log messages (moving to logging later)
+* Updated README structure and setup instructions
+* Added 2019.05.14 updates because it mysteriously disappeared
+* Still to be updated: twitter.py 
+
+2019.05.14
+* Added voice cog (based on official example)
+* Moved on_member_join to bot.py
+* Added user reset password link command
+* Updated command names and aliases 
+* Removed uneeded command based on rewrite
 
 2019.05.13
 * Complete rewrite in progress

@@ -10,8 +10,8 @@ from discord.ext import commands
 
 from lib import ch
 from utils.fjclasses import ChatangoUser, Match
-from utils import config, checks
-
+from utils import checks
+import config
 
 chbot = None
 class Chatango(commands.Cog):
@@ -201,14 +201,13 @@ class Chatango(commands.Cog):
 		await self.wait_until_chbot_running()
 		chbot.bot = self.bot
 		channel_chatango = self.bot.get_channel(config.discord['channel']['chatango'])
-		self.bot.log('```\nchatango_log_task: START\n```')
+		print('chatango_log_task: START')
 		while not self.bot.is_closed() and chbot._running:
 			while chbot.buffer:
 				await channel_chatango.send('```{}```'.format(chbot.buffer.pop(0)))
 				await asyncio.sleep(0.5)
 			await asyncio.sleep(1)
-		print('[{}] Chatango {}: END'.format(datetime.now(), chbot.name))
-		self.bot.log('```\nchatango_log_task: END\n```')
+		print('chatango_log_task: END')
 
 	@commands.command(name='chsend')
 	@commands.is_owner()

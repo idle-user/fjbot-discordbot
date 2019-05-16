@@ -6,11 +6,12 @@ import string
 from discord.ext import commands
 import discord
 
-from utils import config, quickembed
+import config
+from utils import quickembed
 
 
-class UserNotRegisteredError(commands.CheckFailure):
-	pass
+class UserNotRegisteredError(commands.CheckFailure): pass
+class GuildNotOriginError(commands.CheckFailure): pass
 
 class _Database:
 	def __init__(self):
@@ -63,49 +64,6 @@ class _Database:
 	def query(self, sql, params=None):
 		self.execute(sql, params)
 		return self.fetchall()
-
-class _DbHelper(_Database):
-	def __init__(self):
-		super().__init__()
-
-	def search_user_by_name(self, name):
-		return [_Base(id=row['id'], name=row['username']) for row in self.db.query('CALL usp_sel_user_by_name(%s)', (name,))]
-
-	def search_superstar_by_name(self, name):
-		return [_Base(id=row['id'], name=row['name']) for row in self.db.query('CALL usp_sel_superstar_by_name(%s)', (name,))]
-
-	def search_match_by_id(self, id):
-		return [_Base(id=row['id']) for row in self.db.query('SELECT id FROM `match` WHERE match_type_id<>0 AND id=%s', (id,))]
-
-	def search_match_by_superstar_name(self, name):
-		return [_Base(id=row['match_id']) for row in self.db.query('SELECT match_id FROM match_calculation WHERE contestants LIKE %s', ('%{}%'.format(name),))]
-
-	def search_match_by_open_bets(self):
-		return [_Base(id=row['id']) for row in self.db.query('SELECT id FROM `match` WHERE match_type_id<>0 AND bet_open=1')]	
-
-	def search_match_by_open_bets_and_supertar_name(self, name):
-		return [_Base(id=row['match_id']) for row in self.db.query('SELECT match_id FROM match_calculation JOIN `match` ON id=match_id WHERE bet_open=1 AND match_type_id<>0 AND contestants LIKE %s', ('%{}%'.format(name),))]
-
-	def search_match_by_recent_completed(self):
-		return [_Base(id=row['id']) for row in self.db.query('CALL usp_sel_match_recent_completed()')]
-
-	def leaderboard(self, season):
-		return self.db.query('CALL usp_sel_user_leaderboard(%s)', (season,))
-
-	def chatroom_command(self, command):
-		rows = self.db.query('CALL usp_sel_chatroom_command(%s)', (command,))
-		if rows:
-			return rows[0]
-		return False
-
-	def chatroom_command_list(self):
-		return self.db.query('SELECT * FROM chatroom_command ORDER BY command')
-
-	def future_events(self, ppv_check=0):
-		return self.db.query('CALL usp_sel_event_future(%s)', (ppv_check,))
-
-	def superstar_birthday_upcoming(self):
-		return self.db.query('CALL usp_sel_superstar_birthday_upcoming()')
 
 class _Base:
 	def __init__(self, id=None, name=None):
@@ -183,7 +141,50 @@ class _User(_Base):
 		link = 'https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches'.format(temp_secret, self.id, self.username)
 		return link
 
-class DiscordUser(_User, _DbHelper):
+class DbHelper(_Database):
+	def __init__(self):
+		super().__init__()
+
+	def search_user_by_name(self, name):
+		return [_Base(id=row['id'], name=row['username']) for row in self.db.query('CALL usp_sel_user_by_name(%s)', (name,))]
+
+	def search_superstar_by_name(self, name):
+		return [_Base(id=row['id'], name=row['name']) for row in self.db.query('CALL usp_sel_superstar_by_name(%s)', (name,))]
+
+	def search_match_by_id(self, id):
+		return [_Base(id=row['id']) for row in self.db.query('SELECT id FROM `match` WHERE match_type_id<>0 AND id=%s', (id,))]
+
+	def search_match_by_superstar_name(self, name):
+		return [_Base(id=row['match_id']) for row in self.db.query('SELECT match_id FROM match_calculation WHERE contestants LIKE %s', ('%{}%'.format(name),))]
+
+	def search_match_by_open_bets(self):
+		return [_Base(id=row['id']) for row in self.db.query('SELECT id FROM `match` WHERE match_type_id<>0 AND bet_open=1')]	
+
+	def search_match_by_open_bets_and_supertar_name(self, name):
+		return [_Base(id=row['match_id']) for row in self.db.query('SELECT match_id FROM match_calculation JOIN `match` ON id=match_id WHERE bet_open=1 AND match_type_id<>0 AND contestants LIKE %s', ('%{}%'.format(name),))]
+
+	def search_match_by_recent_completed(self):
+		return [_Base(id=row['id']) for row in self.db.query('CALL usp_sel_match_recent_completed()')]
+
+	def leaderboard(self, season):
+		return self.db.query('CALL usp_sel_user_leaderboard(%s)', (season,))
+
+	def chatroom_command(self, command):
+		rows = self.db.query('CALL usp_sel_chatroom_command(%s)', (command,))
+		if rows:
+			return rows[0]
+		return False
+
+	def chatroom_command_list(self):
+		return self.db.query('SELECT * FROM chatroom_command ORDER BY command')
+
+	def future_events(self, ppv_check=0):
+		return self.db.query('CALL usp_sel_event_future(%s)', (ppv_check,))
+
+	def superstar_birthday_upcoming(self):
+		return self.db.query('CALL usp_sel_superstar_birthday_upcoming()')
+
+class DiscordUser(_User, DbHelper):
 	def __init__(self, author):
 		super().__init__()
 		self._author = author
@@ -219,7 +220,7 @@ class DiscordUser(_User, _DbHelper):
 		embed.add_field(name='Available Points', value='{:,}'.format(row['available_points']), inline=True)
 		return embed
 
-class ChatangoUser(_User, _DbHelper):
+class ChatangoUser(_User, DbHelper):
 	def __init__(self, author):
 		super().__init__()
 		self._author = author
@@ -250,7 +251,7 @@ class ChatangoUser(_User, _DbHelper):
 			row['losses'],
 			self.url)
 
-class Superstar(_Base, _DbHelper):
+class Superstar(_Base, DbHelper):
 	def __init__(self, id=None):
 		super().__init__(id=id)
 		self.fetch_info()
@@ -297,7 +298,7 @@ class Superstar(_Base, _DbHelper):
 			embed.set_image(url=self.image_url)
 		return embed
 
-class Match(_Base, _DbHelper):
+class Match(_Base, DbHelper):
 	def __init__(self, id=None):
 		super().__init__(id=id)
 		self.fetch_info()

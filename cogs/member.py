@@ -6,12 +6,62 @@ from discord.ext import commands
 import discord
 
 from utils.fjclasses import DiscordUser
-from utils import config, quickembed
-
+from utils import checks, quickembed
+import config
 
 class Member(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+
+	@commands.command(name='id')
+	async def send_discordid(self, ctx):
+		user = DiscordUser(ctx.author)
+		msg = 'Your discord_id is: `{}`\nLink it to your http://matches.fancyjesse.com profile.'.format(user.discord.id)
+		embed = quickembed.general(desc=msg, user=user)
+		await ctx.author.send(embed=embed)
+		await ctx.send(embed=quickembed.general(desc='Information DMed', user=user))
+
+	@commands.command(name='register', aliases=['verify'])
+	async def register_user(self, ctx):
+		user = DiscordUser(ctx.author)
+		if user.is_registered():
+			embed = quickembed.success(user=user, desc='Your Discord is already registered')
+		else:
+			textquestion = '[Y/N]\nYour Discord is not linked to an existing Matches account (http://matches.fancyjesse.com)\nWould you like to register a new account?'
+			embedquestion = quickembed.question(user=user, desc=textquestion)
+			await ctx.send(embed=embedquestion)
+			confirm = await self.bot.wait_for('message', check=checks.confirm(ctx.author), timeout=15.0)
+			confirm.content = confirm.content.upper()
+			if confirm.content=='Y':
+				response = user.register()
+				if response['success']:
+					embed = quickembed.success(user=user, desc='Successfully registered.\nPlease contact an admin to request a one-time username change.')
+				else:
+					embed = quickembed.error(user=user, desc='Failed to register.\nPlease contact an admin.')
+			elif confirm.content=='N':
+				embed=quickembed.error(user=user, desc='Account registration cancelled')
+		await ctx.send(embed=embed)
+		self.bot.log(embed=embed)
+
+	@commands.command(name='login')
+	@checks.is_registered()
+	async def user_login_link(self, ctx):
+		user = DiscordUser(ctx.author)
+		link = user.request_login_link()
+		msg = 'Quick login link for you! (link expires in 5 minutes)\n<{}>'.format(link)
+		await ctx.author.send(embed=quickembed.general(desc=msg, user=user))
+		embed=quickembed.success(user=user, desc='Login link DMed')
+		await ctx.send(embed=embed)
+
+	@commands.command(name='resetpw', alias=['pwreset'])
+	@checks.is_registered()
+	async def user_reset_password_link(self, ctx):
+		user = DiscordUser(ctx.author)
+		link = user.request_reset_password_link()
+		msg = '<{}>\n(link expires in 5 minutes)'.format(link)
+		await ctx.author.send(embed=quickembed.general(desc=msg, user=user))
+		embed=quickembed.success(user=user, desc='Link DMed')
+		await ctx.send(embed=embed)
 
 	@commands.command(name='commands', aliases=['misc'])
 	async def misc_commands(self, ctx):
