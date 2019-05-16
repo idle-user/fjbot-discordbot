@@ -141,6 +141,13 @@ class _User(_Base):
 		link = 'https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches'.format(temp_secret, self.id, self.username)
 		return link
 
+	def royalrumble_info(self):
+		raise NotImplementedError
+
+	def join_royalrumble(self):
+		raise NotImplementedError
+
+
 class DbHelper(_Database):
 	def __init__(self):
 		super().__init__()

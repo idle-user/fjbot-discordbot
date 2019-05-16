@@ -143,20 +143,27 @@ class Matches(commands.Cog):
 			embed.add_field(name=t['title'], value=t['superstar'], inline=False)
 		await ctx.send(embed=embed)
 
-	# TODO
-	@commands.command(name='rumble', enabled=False)
-	@commands.is_owner()
-	async def rumble_info(self, ctx):
-		return
-		await ctx.send('Join the Rumble at: https://fancyjesse.com/projects/matches/royalrumble')
+	@commands.command(name='rumble', aliases=['royalrumble'], enabled=False)
+	async def royalrumble_info(self, ctx):
 		user = DiscordUser(ctx.author)
-		if user:
-			token = self.bot.dbhandler.user_login_token(user.id)
-			link = 'https://fancyjesse.com/projects/matches/royalrumble?uid={}&token={}'.format(user.id, token)
-			await ctx.author.send('Quick login link for you! <{}> (link expires in 5 minutes)'.format(link))
+		response = user.royalrumble_info()
+		if response['success']:
+			embed = quickembed.success(desc='https://fancyjesse.com/projects/matches/royalrumble', user=user)
+			# TODO
 		else:
-			msg = 'Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link to your existing account.'
-			await ctx.send(embed=quickembed.error(desc=msg, user=user))
+			embed = quickembed.error(desc='No Royal Rumble match info available', user=user)
+		await ctx.send(embed=embed)
+
+	@commands.command(name='joinrumble', enabled=False)
+	@checks.is_registered()
+	async def user_join_royalrumble(self, ctx):
+		user = DiscordUser(ctx.author)
+		response = user.join_royalrumble()
+		if response['success']:
+			embed = quickembed.success(desc='Entry Number: `{}`'.format(response['message']), user=user)
+		else:
+			embed = quickembed.error(desc=response['message'], user=user)
+		await ctx.send(embed=embed)
 
 	@commands.command(name='stats3', aliases=['stats', 'balance', 'bal', 'points', 'wins', 'losses', 'profile', 'mypage'])
 	@checks.is_registered()
