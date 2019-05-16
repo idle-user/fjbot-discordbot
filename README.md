@@ -75,6 +75,11 @@ python3.7 bot.py
 
 ## Update History
 
+2019.05.16
+* PEP 8 by using [Black](https://github.com/python/black/) - *bye-bye tabs ... :(*
+* Code clean-up
+* Still to be updated: twitter cog
+
 2019.05.15
 * Renamed fjbot.py to bot.py
 * Updated admin commands
@@ -86,7 +91,7 @@ python3.7 bot.py
 * Added base royal rumble support
 * Updated README structure and setup instructions
 * Added 2019.05.14 updates because it mysteriously disappeared
-* Still to be updated: twitter.py 
+* Still to be updated: twitter cog
 
 2019.05.14
 * Added voice cog (based on official example)
@@ -105,7 +110,7 @@ python3.7 bot.py
 * Chatango Bot rewrite
 * Update quickembed to support Class structures
 * Cleaned up error handling
-* Still be updated: twitter.py, voice.py
+* Still be updated: twitter cog, voice cog
 
 2019.05.06
 * Complete update to comply with discord.py rewrite
