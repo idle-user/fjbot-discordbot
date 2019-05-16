@@ -24,7 +24,7 @@ TODO
 
 ## Development Setup
 
-*Using Python3.7.3 for this example. Your version might differ*
+*Using Python3.7.3 for this example. Your version might differ.*
 
 Update and install required libraries for Python3.7.3
 ```
