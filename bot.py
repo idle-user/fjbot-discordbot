@@ -37,10 +37,7 @@ async def discord_log(content=None, embed=None):
 
 
 async def pm_owner(content=None, embed=None):
-    server = bot.get_server(config.discord['guild_id'])
-    owner = server.get_member(config.discord['owner_id'])
-    if owner:
-        await bot.send_message(owner, content=content, embed=embed)
+    pass
 
 
 @bot.event
@@ -48,25 +45,29 @@ async def on_command_error(ctx, error):
     msg = None
     if isinstance(error, commands.CommandNotFound):
         print(
-            'CommandNotFound: {0} - {1.guild.name}({1.guild.id}) - {1.author}'.format(
-                error, ctx
-            )
+            'CommandNotFound: {0} - '
+            '{1.guild.name}({1.guild.id}) - '
+            '{1.author}'.format(error, ctx)
         )
         return
     elif isinstance(error, GuildNotOriginError):
         print(
-            'GuildNotOriginError: {.command} - {.guild.name}(.guild.id) - {.author}'.format(
-                ctx
-            )
+            'GuildNotOriginError: {0.command} - '
+            '{0.guild.name}(0.guild.id) - '
+            '{0.author}'.format(ctx)
         )
         return
     elif isinstance(error, UserNotRegisteredError):
-        msg = 'Your Discord is not linked to an existing Matches account.\nUse `!register` or visit http://matches.fancyjesse.com to link to your existing account.'
+        msg = (
+            'Your Discord is not linked to an existing Matches account.\n'
+            'Use `!register` or visit http://matches.fancyjesse.com to link '
+            'to your existing account.'
+        )
     elif isinstance(error, commands.CommandError):
         print(
-            'CommandError: {0} - {1.guild.name}({1.guild.id}) - {1.author} - {1.command}'.format(
-                error, ctx
-            )
+            'CommandError: {0} - '
+            '{1.guild.name}({1.guild.id}) - '
+            '{1.author} - {1.command}'.format(error, ctx)
         )
         return
     elif isinstance(error, commands.CommandInvokeError):
@@ -132,14 +133,6 @@ async def cog_reload(ctx, cog: str):
         await ctx.send('```\n`{}` reloaded\n```'.format(cog))
     except (AttributeError, ImportError) as e:
         await ctx.send('```py\n{}: {}\n```'.format(type(e).__name__, str(e)))
-
-
-@bot.command(name='listguilds', hidden=True)
-@commands.is_owner()
-async def guild_list(ctx):
-    await bot.wait_until_ready()
-    for guild in bot.guilds:
-        print(guild.name)
 
 
 if __name__ == '__main__':

@@ -17,8 +17,11 @@ class Member(commands.Cog):
     @commands.command(name='id')
     async def send_discordid(self, ctx):
         user = DiscordUser(ctx.author)
-        msg = 'Your discord_id is: `{}`\nLink it to your http://matches.fancyjesse.com profile.'.format(
-            user.discord.id
+        msg = (
+            'Your discord_id is: `{}`\n'
+            'Link it to your http://matches.fancyjesse.com profile.'.format(
+                user.discord.id
+            )
         )
         embed = quickembed.general(desc=msg, user=user)
         await ctx.author.send(embed=embed)
@@ -32,7 +35,11 @@ class Member(commands.Cog):
                 desc='Your Discord is already registered', user=user
             )
         else:
-            textquestion = '[Y/N]\nYour Discord is not linked to an existing Matches account (http://matches.fancyjesse.com)\nWould you like to register a new account?'
+            textquestion = (
+                '[Y/N]\nYour Discord is not linked to an existing '
+                'Matches account (http://matches.fancyjesse.com)\n'
+                'Would you like to register a new account?'
+            )
             embedquestion = quickembed.question(user=user, desc=textquestion)
             await ctx.send(embed=embedquestion)
             confirm = await self.bot.wait_for(
@@ -44,7 +51,8 @@ class Member(commands.Cog):
                 if response['success']:
                     embed = quickembed.success(
                         user=user,
-                        desc='Successfully registered.\nPlease contact an admin to request a one-time username change.',
+                        desc='Successfully registered.\n'
+                        'Please contact an admin to request a one-time username change.',
                     )
                 else:
                     embed = quickembed.error(

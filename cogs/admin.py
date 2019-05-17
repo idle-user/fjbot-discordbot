@@ -78,10 +78,10 @@ class Admin(commands.Cog):
     async def add_discord_command(self, ctx, command, *, response):
         user = DiscordUser(ctx.author)
         command = '!{}'.format(command.strip('!'))
-        res = user.add_command(command, response)
+        res = user.add_chatroom_command(command, response)
         if res['success']:
             embed = quickembed.success(
-                desc='Command `{}` updated'.format(command), use=user
+                desc='Command `{}` updated'.format(command), user=user
             )
         else:
             embed = quickembed.error(desc='Failed', user=user)
@@ -94,10 +94,10 @@ class Admin(commands.Cog):
     async def update_discord_command(self, ctx, command, *, response):
         user = DiscordUser(ctx.author)
         command = '!{}'.format(command.strip('!'))
-        res = user.update_command(command, response)
+        res = user.update_chatroom_command(command, response)
         if res['success']:
             embed = quickembed.success(
-                desc='Command `{}` updated'.format(command), use=user
+                desc='Command `{}` updated'.format(command), user=user
             )
         else:
             embed = quickembed.error(desc='Failed', user=user)

@@ -38,8 +38,7 @@ class Matches(commands.Cog):
             self.bot.log(
                 content='```\nshowtime_schedule_task\nchannel: `{}`\nsleep until: `{}`\n```'.format(
                     channel.name, dt + datetime.timedelta(seconds=event_start_timer)
-                ),
-                embed=embed,
+                )
             )
             await asyncio.sleep(event_start_timer)
             if channel:
@@ -204,19 +203,7 @@ class Matches(commands.Cog):
             embed = quickembed.error(desc=response['message'], user=user)
         await ctx.send(embed=embed)
 
-    @commands.command(
-        name='stats3',
-        aliases=[
-            'stats',
-            'balance',
-            'bal',
-            'points',
-            'wins',
-            'losses',
-            'profile',
-            'mypage',
-        ],
-    )
+    @commands.command(name='stats3', aliases=['stats', 'bal', 'points', 'profile'])
     @checks.is_registered()
     async def user_stats_season3(self, ctx):
         await ctx.send(embed=DiscordUser(ctx.author).stats_embed(season=3))
@@ -240,7 +227,8 @@ class Matches(commands.Cog):
             msg = "```{}```".format(
                 '\n'.join(
                     [
-                        'Match {}\n\t{:,} points on {}\n\tPotential Winnings: {:,} ({}%)'.format(
+                        'Match {}\n\t{:,} points on {}\n\t'
+                        'Potential Winnings: {:,} ({}%)'.format(
                             bet['match_id'],
                             bet['points'],
                             bet['contestants'],
@@ -258,15 +246,15 @@ class Matches(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='match')
-    async def match_info(self, ctx, id=None):
+    async def match_info(self, ctx, match_id=None):
         user = DiscordUser(ctx.author)
         try:
-            match_id = int(id)
+            match_id = int(match_id)
         except ValueError:
             msg = 'Invalid `!match` format.\n`!match [match_id]`'
             await ctx.send(embed=quickembed.error(desc=msg, user=user))
             return
-        rows = user.search_match_by_id(id)
+        rows = user.search_match_by_id(match_id)
         if rows:
             await ctx.send(embed=Match(rows[0].id).info_embed())
         else:
@@ -300,6 +288,7 @@ class Matches(commands.Cog):
                 superstar = False
             else:
                 superstar = ' '.join(args[1:])
+                # TODO: get superstar id
                 match_id = False
                 rows = user.search_match_by_open_bets_and_supertar_name(superstar)
                 match_id = rows[0] if rows else False
@@ -308,11 +297,15 @@ class Matches(commands.Cog):
                         'Unable to find an open match for `{}`'.format(superstar),
                         user=user,
                     )
+                    await ctx.send(embed=embed)
                     return
+                # TODO: get team from superstar and match_id
         except ValueError:
-            msg = 'Invalid `!bet` format.\n`!bet [bet_amount] [contestant]`\n`!bet [bet_amount] [match_id] [team]`'
-            embed = quickembed.error(desc=msg, user=user)
-            await ctx.send(embed=embed)
+            msg = (
+                'Invalid `!bet` format.\n`!bet [bet_amount] [contestant]`\n'
+                '`!bet [bet_amount] [match_id] [team]`'
+            )
+            await ctx.send(embed=quickembed.error(desc=msg, user=user))
             return
         response = user.validate_bet(match_id, team, bet)
         if response['success']:
@@ -355,7 +348,12 @@ class Matches(commands.Cog):
                 match_id = int(args[0])
                 rating = float(args[1])
         except ValueError:
-            msg = 'Invalid `!rate` format.\n`!rate [rating]` (rates last match)\n`!rate [match_id] [rating]`'
+            msg = (
+                'Invalid `!rate` format.\n'
+                '`!rate [rating]` '
+                '(rates last match)\n`'
+                '!rate [match_id] [rating]`'
+            )
             embed = quickembed.error(desc=msg, user=user)
             await ctx.send(embed=embed)
             return

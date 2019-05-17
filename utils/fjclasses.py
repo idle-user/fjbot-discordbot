@@ -1,8 +1,8 @@
 import random
 import string
 
-import discord
 import MySQLdb
+import discord
 from discord.ext import commands
 
 import config
@@ -53,7 +53,7 @@ class _Database:
     def close(self):
         try:
             self.connection.close()
-            self.cusor.close()
+            self.cursor.close()
         except Exception:
             pass
 
@@ -88,7 +88,7 @@ class _Base:
     def fetch_info(self):
         raise NotImplementedError
 
-    def fill_info(self):
+    def fill_info(self, row):
         raise NotImplementedError
 
 
@@ -108,6 +108,9 @@ class _User(_Base):
     def register(self):
         return NotImplementedError
 
+    def fetch_info(self):
+        raise NotImplementedError
+
     def fill_info(self, row):
         self._id = row['id']
         self._name = row['username']
@@ -116,7 +119,7 @@ class _User(_Base):
         self.twitter_id = row['twitter_id']
         self.access = row['access']
         self.last_login = row['last_login']
-        self.url = 'https://fancyjesse.com/projects/matches/user?user_id={}'.format(
+        self.url = 'https://fancyjesse.com/projects/matches/user' '?user_id={}'.format(
             self.id
         )
 
@@ -166,8 +169,9 @@ class _User(_Base):
             'CALL usp_upd_user_temp_secret(%s, %s, %s);',
             (self.id, self.username, temp_secret),
         )
-        link = 'https://fancyjesse.com/account?temp_pw={}&user_id={}&username={}&project=matches'.format(
-            temp_secret, self.id, self.username
+        link = (
+            'https://fancyjesse.com/account?temp_pw={}&user_id={}'
+            '&username={}&project=matches'.format(temp_secret, self.id, self.username)
         )
         return link
 
@@ -206,7 +210,9 @@ class DbHelper(_Database):
         return [
             _Base(id=row['match_id'])
             for row in self.db.query(
-                'SELECT match_id FROM match_calculation WHERE contestants LIKE %s',
+                'SELECT match_id '
+                'FROM match_calculation '
+                'WHERE contestants LIKE %s',
                 ('%{}%'.format(name),),
             )
         ]
@@ -223,7 +229,10 @@ class DbHelper(_Database):
         return [
             _Base(id=row['match_id'])
             for row in self.db.query(
-                'SELECT match_id FROM match_calculation JOIN `match` ON id=match_id WHERE bet_open=1 AND match_type_id<>0 AND contestants LIKE %s',
+                'SELECT match_id '
+                'FROM match_calculation '
+                'JOIN `match` ON id=match_id '
+                'WHERE bet_open=1 AND match_type_id<>0 AND contestants LIKE %s',
                 ('%{}%'.format(name),),
             )
         ]
@@ -245,6 +254,12 @@ class DbHelper(_Database):
 
     def chatroom_command_list(self):
         return self.db.query('SELECT * FROM chatroom_command ORDER BY command')
+
+    def add_chatroom_command(self, command, response):
+        pass
+
+    def update_chatroom_command(self, command, response):
+        pass
 
     def future_events(self, ppv_check=0):
         return self.db.query('CALL usp_sel_event_future(%s)', (ppv_check,))
@@ -324,12 +339,16 @@ class ChatangoUser(_User, DbHelper):
 
     def stats_text(self, season):
         row = self.stats(season)
-        return 'Total Points: {:,} | Available Points: {:,} | Wins: {} | Losses: {} | {}'.format(
-            row['total_points'],
-            row['available_points'],
-            row['wins'],
-            row['losses'],
-            self.url,
+        return (
+            'Total Points: {:,} | Available Points: {:,} | '
+            'Wins: {} | Losses: {} | '
+            '{}'.format(
+                row['total_points'],
+                row['available_points'],
+                row['wins'],
+                row['losses'],
+                self.url,
+            )
         )
 
 
@@ -489,8 +508,14 @@ class Match(_Base, DbHelper):
         team_won = self.team_won if self.team_won else 'TBD'
         winner_note = '({0.winner_note})'.format(self) if self.winner_note else ''
         betting = 'Open' if self.bet_open else 'Closed'
-        return '[Match {0.id}] {1}\nEvent: {0.event} {0.date}\nBets: {2}\nPot: {3}\n{0.match_type} {4}\n\t{5}\nTeam Won: {6} {7}'.format(
-            self, rating, betting, pot, match_detail, teams, team_won, winner_note
+        return (
+            '[Match {0.id}] {1}\n'
+            'Event: {0.event} {0.date}\n'
+            'Bets: {2}\nPot: {3}\n'
+            '{0.match_type} {4}\n'
+            '\t{5}\nTeam Won: {6} {7}'.format(
+                self, rating, betting, pot, match_detail, teams, team_won, winner_note
+            )
         )
 
     def info_embed(self):

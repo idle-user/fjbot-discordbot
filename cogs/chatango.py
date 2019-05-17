@@ -90,7 +90,10 @@ class Chatango(commands.Cog):
                 msg = 'Discord Channel: {}'.format(config.discord['invite_link'])
                 self.sendUserMessage(user, msg)
             elif not user.is_registered() and 'register' not in args[0]:
-                msg = 'You must first register to use commands. Please use command `!register`.'
+                msg = (
+                    'You must first register to use commands. '
+                    'Please use command `!register`.'
+                )
                 self.sendUserMessage(user, msg)
             else:
                 self.command_handler(user, args[0], args[1:])
@@ -103,7 +106,14 @@ class Chatango(commands.Cog):
             elif cmd == '!login':
                 msg = self.login_link(user)
             elif cmd == '!help':
-                msg = '!login - Login link | !resetpw - Change password | !rate - Rate the current match | !stats - View your stats | !bet - Bet points on a current Match | !rumble - Get your entry number for the Royal Rumble (seasonal)'
+                msg = (
+                    '!login - Login link | '
+                    '!resetpw - Change password | '
+                    '!rate - Rate the current match | '
+                    '!stats - View your stats | '
+                    '!bet - Bet points on a current Match | '
+                    '!rumble - Get your entry number for the Royal Rumble (seasonal)'
+                )
             elif cmd == '!resetpw':
                 msg = self.reset_pw(user)
             elif cmd in ['!mypoints', '!points', '!mystats', '!stats']:
@@ -123,24 +133,29 @@ class Chatango(commands.Cog):
                     if '@mention' in res:
                         msg = msg.replace('@mention', user.mention)
                 else:
-                    msg = 'Command not found for `{}`. Use !help to get a list of commands.'.format(
-                        cmd
+                    msg = (
+                        'Command not found for `{}`. '
+                        'Use !help to get a list of commands.'.format(cmd)
                     )
             if msg:
                 self.sendUserMessage(user._author, msg)
 
         def register(self, user):
             if user.is_registered():
-                return '{}, you are already registered. Use `!help` to get a list of commands'.format(
-                    user.mention
+                return (
+                    '{}, you are already registered. '
+                    'Use `!help` to get a list of commands'.format(user.mention)
                 )
             row = user.register()
             if row['success']:
                 self.bot.log(
                     '```\n[chatango] `{}` has registered\n```'.format(user.name)
                 )
-                return '{}, registration was successful! You can now use !login to get a quick login link for the website. Remember to set a password for your account by using `!resetpw`. For other commands, use `!help`.'.format(
-                    user.mention
+                return (
+                    '{}, registration was successful! '
+                    'You can now use !login to get a quick login link for the website. '
+                    'Remember to set a password for your account by using '
+                    '`!resetpw`. For other commands, use `!help`.'.format(user.mention)
                 )
             else:
                 self.bot.log(
