@@ -85,13 +85,12 @@ async def on_message(ctx):
         return
     if not ctx.content.startswith(config.general['command_prefix']):
         return
-    # if ctx.content.startswith('/')
     res = DbHelper().chatroom_command(ctx.content.split(' ')[0])
     if res['success']:
         await ctx.channel.send(res['message'].replace('@mention', ctx.author.mention))
-    else:
-        tokens = ctx.content.split(' ')
-        ctx.content = '{} {}'.format(tokens[0].lower(), ' '.join(tokens[1:]))
+        return
+    tokens = ctx.content.split(' ')
+    ctx.content = '{} {}'.format(tokens[0].lower(), ' '.join(tokens[1:]))
     await bot.process_commands(ctx)
 
 
