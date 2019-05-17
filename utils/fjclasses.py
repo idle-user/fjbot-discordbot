@@ -209,17 +209,6 @@ class DbHelper(_Database):
             )
         ]
 
-    def search_match_by_superstar_name(self, name):
-        return [
-            _Base(id=row['match_id'])
-            for row in self.db.query(
-                'SELECT match_id '
-                'FROM match_calculation '
-                'WHERE contestants LIKE %s',
-                ('%{}%'.format(name),),
-            )
-        ]
-
     def search_match_by_open_bets(self):
         return [
             _Base(id=row['id'])
@@ -293,7 +282,6 @@ class DiscordUser(_User, DbHelper):
         rows = self.db.query(
             'SELECT * FROM user WHERE discord_id=%s', (self.discord.id,)
         )
-        print(rows)
         if rows:
             self.fill_info(rows[0])
 

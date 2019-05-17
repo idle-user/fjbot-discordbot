@@ -250,8 +250,8 @@ class Matches(commands.Cog):
         user = DiscordUser(ctx.author)
         try:
             match_id = int(match_id)
-        except ValueError:
-            msg = 'Invalid `!match` format.\n`!match [match_id]`'
+        except Exception:
+            msg = 'Invalid `!match` command\n`!match [match_id]`'
             await ctx.send(embed=quickembed.error(desc=msg, user=user))
             return
         rows = user.search_match_by_id(match_id)
@@ -281,36 +281,44 @@ class Matches(commands.Cog):
     @checks.is_registered()
     async def place_match_bet(self, ctx, *args):
         user = DiscordUser(ctx.author)
+        bet = None
+        match_id = None
+        team = None
+        superstar_name = None
         try:
             bet = int(args[0].replace(',', ''))
             if len(args) == 3 and args[1].isdigit() and args[2].isdigit():
                 match_id = int(args[1])
                 team = int(args[2])
-                superstar = False
-            else:
-                superstar = ' '.join(args[1:])
-                # TODO: get superstar id
+            elif len(args) > 1:
+                superstar_name = ' '.join(args[1:])
                 match_id = False
-                rows = user.search_match_by_open_bets_and_supertar_name(superstar)
-                match_id = rows[0] if rows else False
+                rows = user.search_match_by_open_bets_and_supertar_name(superstar_name)
+                match_id = rows[0] if rows else False  # use first match found
                 if not match_id:
                     embed = quickembed.error(
-                        desc='Unable to find an open match for `{}`'.format(superstar),
+                        desc='Unable to find an open match for contestant `{}`'.format(
+                            superstar_name
+                        ),
                         user=user,
                     )
                     await ctx.send(embed=embed)
                     return
-                # TODO: get team from superstar and match_id
-        except ValueError:
+            else:
+                raise
+        except Exception:
             msg = (
-                'Invalid `!bet` format.\n`!bet [bet_amount] [contestant]`\n'
+                'Invalid `!bet` command\n'
+                '`!bet [bet_amount] [contestant]`\n'
                 '`!bet [bet_amount] [match_id] [team]`'
             )
             await ctx.send(embed=quickembed.error(desc=msg, user=user))
             return
+        match = Match(match_id)
+        if not team and superstar_name:
+            team = match.team_by_contestant(superstar_name)
         response = user.validate_bet(match_id, team, bet)
         if response['success']:
-            match = Match(match_id)
             embedquestion = quickembed.question(desc='[Y/N] Place this bet?', user=user)
             embedquestion.add_field(
                 name='Info', value=match.info_text_short(), inline=False
@@ -348,9 +356,9 @@ class Matches(commands.Cog):
             else:
                 match_id = int(args[0])
                 rating = float(args[1])
-        except ValueError:
+        except Exception:
             msg = (
-                'Invalid `!rate` format.\n'
+                'Invalid `!rate` commant\n'
                 '`!rate [rating]` (rates last match)\n'
                 '`!rate [match_id] [rating]`'
             )
