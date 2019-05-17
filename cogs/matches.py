@@ -265,6 +265,7 @@ class Matches(commands.Cog):
             )
 
     @commands.command(name='matches', aliases=['openmatches'])
+    @commands.cooldown(1, 60.0, commands.BucketType.user)
     async def open_matches(self, ctx):
         user = DiscordUser(ctx.author)
         rows = user.search_match_by_open_bets()
@@ -294,7 +295,7 @@ class Matches(commands.Cog):
                 match_id = rows[0] if rows else False
                 if not match_id:
                     embed = quickembed.error(
-                        'Unable to find an open match for `{}`'.format(superstar),
+                        desc='Unable to find an open match for `{}`'.format(superstar),
                         user=user,
                     )
                     await ctx.send(embed=embed)
@@ -350,9 +351,8 @@ class Matches(commands.Cog):
         except ValueError:
             msg = (
                 'Invalid `!rate` format.\n'
-                '`!rate [rating]` '
-                '(rates last match)\n`'
-                '!rate [match_id] [rating]`'
+                '`!rate [rating]` (rates last match)\n'
+                '`!rate [match_id] [rating]`'
             )
             embed = quickembed.error(desc=msg, user=user)
             await ctx.send(embed=embed)

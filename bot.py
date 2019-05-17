@@ -50,6 +50,8 @@ async def on_command_error(ctx, error):
             '{1.author}'.format(error, ctx)
         )
         return
+    if isinstance(error, commands.CommandOnCooldown):
+        msg = 'Slow down! Try again in {:.1f} seconds'.format(error.retry_after)
     elif isinstance(error, GuildNotOriginError):
         print(
             'GuildNotOriginError: {0.command} - '

@@ -49,21 +49,21 @@ class Member(commands.Cog):
             if confirm.content == 'Y':
                 response = user.register()
                 if response['success']:
-                    embed = quickembed.success(
-                        user=user,
-                        desc='Successfully registered.\n'
-                        'Please contact an admin to request a one-time username change.',
-                    )
+                    user.refresh()
+                    embed = quickembed.success(desc=response['message'], user=user)
+                    print('{} registered'.format(user.username))
                 else:
-                    embed = quickembed.error(
-                        user=user, desc='Failed to register.\nPlease contact an admin.'
+                    embed = quickembed.error(desc=response['message'], user=user)
+                    print(
+                        '{} failed to register - {}'.format(
+                            user.username, response['message']
+                        )
                     )
             elif confirm.content == 'N':
                 embed = quickembed.error(
                     user=user, desc='Account registration cancelled'
                 )
         await ctx.send(embed=embed)
-        self.bot.log(embed=embed)
 
     @commands.command(name='login')
     @checks.is_registered()

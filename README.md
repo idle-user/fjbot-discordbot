@@ -75,6 +75,11 @@ python3.7 bot.py
 
 ## Update History
 
+2019.05.17
+* Added user register functionality
+* Changed Discord message logging to prints (logging later)
+* Added cooldown to Open Matches command
+
 2019.05.16
 * PEP 8 by using [Black](https://github.com/python/black/) - *bye-bye tabs ... :(*
 * Code clean-up

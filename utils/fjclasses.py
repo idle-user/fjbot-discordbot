@@ -105,6 +105,9 @@ class _User(_Base):
     def mention(self):
         raise NotImplementedError
 
+    def refresh(self):
+        self.fetch_info()
+
     def register(self):
         return NotImplementedError
 
@@ -290,11 +293,14 @@ class DiscordUser(_User, DbHelper):
         rows = self.db.query(
             'SELECT * FROM user WHERE discord_id=%s', (self.discord.id,)
         )
+        print(rows)
         if rows:
             self.fill_info(rows[0])
 
     def register(self):
-        pass
+        return self.db.query(
+            'CALL usp_ins_user_from_discord(%s, %s)', (self.discord, self.discord.id)
+        )[0]
 
     def stats_embed(self, season):
         row = self.stats(season)
@@ -327,6 +333,10 @@ class ChatangoUser(_User, DbHelper):
     def mention(self):
         return '@{}'.format(self._author.name)
 
+    @property
+    def chatango(self):
+        return self._author
+
     def fetch_info(self):
         rows = self.db.query(
             'SELECT * FROM user WHERE chatango_id=%s', (self._author.name,)
@@ -335,7 +345,9 @@ class ChatangoUser(_User, DbHelper):
             self.fill_info(rows[0])
 
     def register(self):
-        pass
+        return self.db.query(
+            'CALL usp_ins_user_from_chatango(%s, %s)', (self.name, self.name)
+        )[0]
 
     def stats_text(self, season):
         row = self.stats(season)
