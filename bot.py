@@ -146,4 +146,4 @@ if __name__ == '__main__':
             print(f'Failed to load extension {extension}.', file=sys.stderr)
             traceback.print_exc()
     bot.run(config.discord['access_token'])
-    print('[{}] DiscordBot `{}`: END'.format(datetime.now(),  bot.user.name))
+    print('[{}] DiscordBot `{}`: END'.format(datetime.now(), bot.user.name))
