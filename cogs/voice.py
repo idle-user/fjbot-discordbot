@@ -70,8 +70,8 @@ class Voice(commands.Cog):
             )
         )
 
-    @commands.command(name='play', aliases=['yt', 'vplay'])
-    @checks.is_registered()
+    @commands.command(name='ytdl')
+    @commands.is_owner()
     async def play_yt(self, ctx, *, url):
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop)
@@ -85,7 +85,7 @@ class Voice(commands.Cog):
             )
         )
 
-    @commands.command(name='stream')
+    @commands.command(name='stream', aliases=['play', 'yt', 'vplay'])
     @checks.is_registered()
     async def stream_yt(self, ctx, *, url):
         async with ctx.typing():
