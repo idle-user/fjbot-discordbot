@@ -51,7 +51,7 @@ async def on_command_error(ctx, error):
         )
         return
     if isinstance(error, commands.CommandOnCooldown):
-        msg = 'Slow down! Try again in {:.1f} seconds'.format(error.retry_after)
+        msg = 'Slow down! Try again in {:.1f} seconds.'.format(error.retry_after)
     elif isinstance(error, GuildNotOriginError):
         print(
             'GuildNotOriginError: {0.command} - '
@@ -99,7 +99,7 @@ async def on_message(ctx):
 @bot.event
 async def on_ready():
     bot.start_dt = datetime.now()
-    print('[{}] Discord `{}`: START'.format(bot.start_dt, bot.user.name))
+    print('[{}] DiscordBot `{}`: START'.format(bot.start_dt, bot.user.name))
 
 
 @bot.command(name='load', hidden=True)
@@ -146,4 +146,4 @@ if __name__ == '__main__':
             print(f'Failed to load extension {extension}.', file=sys.stderr)
             traceback.print_exc()
     bot.run(config.discord['access_token'])
-    print('[{}] Discord `FJBOT`: END'.format(datetime.now()))
+    print('[{}] DiscordBot `{}`: END'.format(datetime.now(),  bot.user.name))

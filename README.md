@@ -80,6 +80,7 @@ python3.7 bot.py
 * Changed Discord message logging to prints (logging later)
 * Added cooldown to Open Matches command
 * Fixed betting command
+* Fixed twitter cog
 * Clean up
 
 2019.05.16

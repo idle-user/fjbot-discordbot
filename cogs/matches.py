@@ -35,8 +35,8 @@ class Matches(commands.Cog):
                 event_length_timer = 7200
             else:
                 channel = self.bot.get_channel(config.discord['channel']['general'])
-            self.bot.log(
-                content='```\nshowtime_schedule_task\nchannel: `{}`\nsleep until: `{}`\n```'.format(
+            print(
+                'showtime_schedule_task: channel:`{}` sleep until:`{}`'.format(
                     channel.name, dt + datetime.timedelta(seconds=event_start_timer)
                 )
             )
