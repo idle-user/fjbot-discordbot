@@ -418,22 +418,22 @@ class Match(_Base, DbHelper):
 
     def set_teams(self, rows):
         for r in rows:
-            self.teams.append((r['team'], r['bet_multiplier'], r['members']))
+            self.teams[r['team']]((r['team'], r['bet_multiplier'], r['members']))
 
     def contains_contestant(self, name):
         return name.lower() in self.contestants.lower()
 
     def contestants_by_team(self, team_id):
-        for t in self.teams:
-            if team_id == t[0]:
-                return t[2]
+        for i in self.teams:
+            if team_id == self.teams[i]['team']:
+                return self.teams[i]['members']
         return False
 
     def team_by_contestant(self, name):
         name = name.lower()
-        for t in self.teams:
-            if name in t[2].lower():
-                return t[0]
+        for i in self.teams:
+            if name in self.teams[i]['members'].lower():
+                return self.teams[i]['team']
         return False
 
     def fill_info(self, row):

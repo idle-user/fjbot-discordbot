@@ -292,9 +292,8 @@ class Matches(commands.Cog):
                 team = int(args[2])
             elif len(args) > 1:
                 superstar_name = ' '.join(args[1:])
-                match_id = False
                 rows = user.search_match_by_open_bets_and_supertar_name(superstar_name)
-                match_id = rows[0] if rows else False  # use first match found
+                match_id = rows[0].id if rows else False  # use first match found
                 if not match_id:
                     embed = quickembed.error(
                         desc='Unable to find an open match for contestant `{}`'.format(
@@ -335,7 +334,10 @@ class Matches(commands.Cog):
             if confirm.content == 'Y':
                 response = user.place_bet(match_id, team, bet)
                 if response['success']:
-                    embed = quickembed.success(desc=response['message'], user=user)
+                    msg = 'Placed `{}` point bet on `{}`'.format(
+                        bet, match.teams[team]['members']
+                    )
+                    embed = quickembed.success(desc=msg, user=user)
                 else:
                     embed = quickembed.error(desc=response['message'], user=user)
             elif confirm.content == 'N':

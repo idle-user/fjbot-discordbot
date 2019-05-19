@@ -75,6 +75,10 @@ python3.7 bot.py
 
 ## Update History
 
+2019.05.18
+* Fixed User Match betting 
+* Fixed Match team searches
+
 2019.05.17
 * Added user register functionality
 * Changed Discord message logging to prints (logging later)
