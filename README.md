@@ -64,7 +64,7 @@ git clone https://github.com/FancyJesse/fjbot.git
 
 Setup bot configuration
 ```
-./FJBot/config.py
+./fjbot/config.py
 ```
 
 Run bot
@@ -74,6 +74,10 @@ python3.7 bot.py
 
 
 ## Update History
+
+2019.05.19
+* Fixed User Register through Chatango
+* Organized Chatang cog prints
 
 2019.05.18
 * Fixed User Match betting 

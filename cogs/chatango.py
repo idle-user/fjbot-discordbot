@@ -50,10 +50,10 @@ class Chatango(commands.Cog):
             self.message_handler(author, message)
 
         def onFloodWarning(self, room):
-            print('```\n[chatango] onFloodWarning:{}\n```'.format(room))
+            print('[chatango] onFloodWarning:{}'.format(room))
 
         def onFloodBan(self, room):
-            print('```\n[chatango] onFloodBan:{}\n```'.format(room))
+            print('[chatango] onFloodBan:{}'.format(room))
 
         def sendRoomMessage(self, room, msg):
             room = self.getRoom(room)
@@ -77,7 +77,7 @@ class Chatango(commands.Cog):
                 else:
                     self.pm.message(ch.User(user.name), msg)
             except Exception:
-                print('```\n[chatango] Failed to PM User:{}\n```'.format(user.name))
+                print('[chatango] Failed to PM User:{}'.format(user.name))
 
         def message_handler(self, author, message):
             if author.name == self.name.lower() or not message.startswith('!'):
@@ -146,7 +146,7 @@ class Chatango(commands.Cog):
                 )
             response = user.register()
             if response['success']:
-                print('```\n[chatango] `{}` has registered\n```'.format(user.name))
+                print('[chatango] `{}` has registered'.format(user.name))
                 return (
                     '{}, registration was successful! '
                     'You can now use !login to get a quick login link for the website. '
@@ -154,21 +154,17 @@ class Chatango(commands.Cog):
                     '`!resetpw`. For other commands, use `!help`.'.format(user.mention)
                 )
             else:
-                print('```\n[chatango] Failed to register: `{}`\n```'.format(user.name))
+                print('[chatango] Failed to register: `{}`'.format(user.name))
                 return response['message']
 
         def login_link(self, user):
             link = user.request_login_link()
-            print('```\n[chatango] `{}` requested a login link\n```'.format(user.name))
+            print('[chatango] `{}` requested a login link'.format(user.name))
             return '{} (link expires in 5 minutes)'.format(link)
 
         def reset_pw(self, user):
             link = user.request_reset_password_link()
-            print(
-                '```\n[chatango] `{}` requested a change password link\n```'.format(
-                    user.name
-                )
-            )
+            print('[chatango] `{}` requested a change password link'.format(user.name))
             return '{} (Link will expire in 30 minutes)'.format(link)
 
         def rate_match(self, user, args=[]):
@@ -185,7 +181,7 @@ class Chatango(commands.Cog):
             res = user.rate_match(match.id, rating)
             if res['success']:
                 print(
-                    '```\n[chatango] `{}` rated `Match {}` `{}` stars\n```'.format(
+                    '[chatango] `{}` rated `Match {}` `{}` stars'.format(
                         user.name, match.id, rating
                     )
                 )
@@ -255,7 +251,7 @@ class Chatango(commands.Cog):
     @commands.command(name='chsend')
     @commands.is_owner()
     async def send_message(self, ctx, *, message: str):
-        await ctx.send('Send message to Chatango? [Y/N]```{}```'.format(message))
+        await ctx.send('Send message to Chatango? [Y/N]\n```{}```'.format(message))
         confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=10.0)
         if confirm and confirm.content.upper() == 'Y':
             ch_rooms = []
@@ -273,9 +269,7 @@ class Chatango(commands.Cog):
     @commands.command(name='chusers')
     @commands.is_owner()
     async def display_users(self, ctx):
-        await ctx.send(
-            '```\nChatango User List ({})\n {}```'.format(len(chbot.users), chbot.users)
-        )
+        print('Chatango User List ({})\n{}'.format(len(chbot.users), chbot.users))
 
 
 def setup(bot):

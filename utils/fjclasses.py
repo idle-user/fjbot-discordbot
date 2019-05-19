@@ -333,9 +333,7 @@ class ChatangoUser(_User, DbHelper):
             self.fill_info(rows[0])
 
     def register(self):
-        return self.db.query(
-            'CALL usp_ins_user_from_chatango(%s, %s)', (self.name, self.name)
-        )[0]
+        return self.db.query('CALL usp_ins_user_from_chatango(%s)', (self.name,))[0]
 
     def stats_text(self, season):
         row = self.stats(season)
