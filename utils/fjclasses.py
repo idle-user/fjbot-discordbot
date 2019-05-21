@@ -229,6 +229,11 @@ class DbHelper(_Database):
             )
         ]
 
+    def search_match_by_current(self):
+        return [
+            _Base(id=row['id']) for row in self.db.query('CALL usp_sel_match_current()')
+        ]
+
     def search_match_by_recent_completed(self):
         return [
             _Base(id=row['id'])

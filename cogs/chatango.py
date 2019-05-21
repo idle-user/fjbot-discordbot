@@ -192,7 +192,7 @@ class Chatango(commands.Cog):
                 return res['message']
 
         def bet_match(self, user, args=[]):
-            return 'Command not available yet on Chatango. Try !discord'
+            return 'Full command not available yet on Chatango. Use !login'
 
         def royalrumble_entry(self, user, args=[]):
             return 'Command not available yet on Chatango. Try !discord'

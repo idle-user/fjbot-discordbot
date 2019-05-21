@@ -75,6 +75,10 @@ python3.7 bot.py
 
 ## Update History
 
+2019.05.21
+* Updated Matches command to display short view if too many
+* Added current match command
+
 2019.05.19
 * Fixed User Register through Chatango
 * Organized Chatang cog prints

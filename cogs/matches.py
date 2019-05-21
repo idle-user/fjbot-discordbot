@@ -50,6 +50,16 @@ class Matches(commands.Cog):
                 await asyncio.sleep(event_length_timer)
         self.bot.log('```\nshowtime_schedule_task\nEND\n```')
 
+    @commands.command(name='currentmatch')
+    async def current_match_info(self, ctx):
+        user = DiscordUser(ctx.author)
+        rows = user.search_match_by_current()
+        if rows:
+            embed = Match(rows[0].id).info_embed()
+        else:
+            embed = quickembed.error(desc='No match found', user=user)
+        await ctx.send(embed=embed)
+
     @commands.command(name='lastmatch', aliases=['ratestart'])
     async def recent_match_info(self, ctx):
         user = DiscordUser(ctx.author)
@@ -269,7 +279,18 @@ class Matches(commands.Cog):
     async def open_matches(self, ctx):
         user = DiscordUser(ctx.author)
         rows = user.search_match_by_open_bets()
-        if rows:
+        if len(rows) > 5:
+            embed = quickembed.info(desc='Short View - Use `!match [id]`')
+            embed.set_author(name='Open Bet Matches')
+            for row in rows:
+                match = Match(row.id)
+                embed.add_field(
+                    name='[Match {}]'.format(match.id),
+                    value='{}'.format(match.info_text_short()),
+                    inline=True,
+                )
+            await ctx.send(embed=embed)
+        elif len(rows) > 0:
             for row in rows:
                 await ctx.send(embed=Match(row.id).info_embed())
         else:
