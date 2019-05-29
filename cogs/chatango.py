@@ -1,7 +1,7 @@
 import asyncio
+import logging
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 from threading import Thread
 from time import sleep
 
@@ -13,6 +13,8 @@ from utils import checks
 from utils.fjclasses import ChatangoUser, Match
 
 chbot = None
+
+logger = logging.getLogger(__name__)
 
 
 class Chatango(commands.Cog):
@@ -50,10 +52,10 @@ class Chatango(commands.Cog):
             self.message_handler(author, message)
 
         def onFloodWarning(self, room):
-            print('[chatango] onFloodWarning:{}'.format(room))
+            logger.warning('onFloodWarning:{}'.format(room))
 
         def onFloodBan(self, room):
-            print('[chatango] onFloodBan:{}'.format(room))
+            logger.warning('onFloodBan:{}'.format(room))
 
         def sendRoomMessage(self, room, msg):
             room = self.getRoom(room)
@@ -77,7 +79,7 @@ class Chatango(commands.Cog):
                 else:
                     self.pm.message(ch.User(user.name), msg)
             except Exception:
-                print('[chatango] Failed to PM User:{}'.format(user.name))
+                logging.error('Failed to PM User:{}'.format(user.name))
 
         def message_handler(self, author, message):
             if author.name == self.name.lower() or not message.startswith('!'):
@@ -146,7 +148,7 @@ class Chatango(commands.Cog):
                 )
             response = user.register()
             if response['success']:
-                print('[chatango] `{}` has registered'.format(user.name))
+                logger.info('`{}` has registered'.format(user.name))
                 return (
                     '{}, registration was successful! '
                     'You can now use !login to get a quick login link for the website. '
@@ -154,17 +156,17 @@ class Chatango(commands.Cog):
                     '`!resetpw`. For other commands, use `!help`.'.format(user.mention)
                 )
             else:
-                print('[chatango] Failed to register: `{}`'.format(user.name))
+                logger.error('Failed to register: `{}`'.format(user.name))
                 return response['message']
 
         def login_link(self, user):
             link = user.request_login_link()
-            print('[chatango] `{}` requested a login link'.format(user.name))
+            logger.info('`{}` requested a login link'.format(user.name))
             return '{} (link expires in 5 minutes)'.format(link)
 
         def reset_pw(self, user):
             link = user.request_reset_password_link()
-            print('[chatango] `{}` requested a change password link'.format(user.name))
+            logger.info('`{}` requested a change password link'.format(user.name))
             return '{} (Link will expire in 30 minutes)'.format(link)
 
         def rate_match(self, user, args=[]):
@@ -180,8 +182,8 @@ class Chatango(commands.Cog):
             match = Match(id=rows[0].id)
             res = user.rate_match(match.id, rating)
             if res['success']:
-                print(
-                    '[chatango] `{}` rated `Match {}` `{}` stars'.format(
+                logger.info(
+                    '`{}` rated `Match {}` `{}` stars'.format(
                         user.name, match.id, rating
                     )
                 )
@@ -217,12 +219,12 @@ class Chatango(commands.Cog):
 
     async def chatango_bot_task(self):
         await self.bot.wait_until_ready()
-        print('[{}] Chatango Bot: START'.format(datetime.now()))
+        logger.info('START ChatangoBot thread')
         executor = ThreadPoolExecutor()
         t_stream = Thread(target=self.start_chbot)
         await self.bot.loop.run_in_executor(executor, t_stream.start)
         await self.bot.loop.run_in_executor(executor, t_stream.join)
-        print('[{}] Chatango `{}`: END'.format(datetime.now(), chbot.name))
+        logger.info('END ChatangoBot `{}` thread'.format(chbot.name))
         await self.chatango_bot_task()
 
     async def wait_until_chbot_running(self, limit=30):
@@ -240,13 +242,13 @@ class Chatango(commands.Cog):
         await self.wait_until_chbot_running()
         chbot.bot = self.bot
         channel_chatango = self.bot.get_channel(config.discord['channel']['chatango'])
-        print('chatango_log_task: START')
+        logger.info('START chatango_log_task')
         while not self.bot.is_closed() and chbot._running:
             while chbot.buffer:
-                await channel_chatango.send('```{}```'.format(chbot.buffer.pop(0)))
+                await channel_chatango.send('```\n{}\n```'.format(chbot.buffer.pop(0)))
                 await asyncio.sleep(0.5)
             await asyncio.sleep(1)
-        print('chatango_log_task: END')
+        logger.info('END chatango_log_task')
 
     @commands.command(name='chsend')
     @commands.is_owner()
@@ -269,7 +271,9 @@ class Chatango(commands.Cog):
     @commands.command(name='chusers')
     @commands.is_owner()
     async def display_users(self, ctx):
-        print('Chatango User List ({})\n{}'.format(len(chbot.users), chbot.users))
+        ctx.send(
+            '```Chatango User List ({})\n{}\n```'.format(len(chbot.users), chbot.users)
+        )
 
 
 def setup(bot):

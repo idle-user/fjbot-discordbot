@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 
 import tweepy
 from discord.ext import commands
@@ -7,6 +8,9 @@ from discord.ext import commands
 import config
 from utils import checks, quickembed
 from utils.fjclasses import DbHelper, DiscordUser, Superstar
+
+
+logger = logging.getLogger(__name__)
 
 
 class Twitter(commands.Cog):
@@ -19,11 +23,7 @@ class Twitter(commands.Cog):
             config.twitter['access_token'], config.twitter['access_token_secret']
         )
         self.twitter = tweepy.API(self.auth)
-        print(
-            '[{}] Twitter {}: START'.format(
-                datetime.datetime.now(), self.twitter.me().screen_name
-            )
-        )
+        logger.info('START TwitterBot `{}`'.format(self.twitter.me().screen_name))
         self.bot.loop.create_task(self.superstar_birthday_task())
 
     def __unload(self):
@@ -60,7 +60,7 @@ class Twitter(commands.Cog):
                         break
                     events.append(s)
                     timer = (events[0]['dt'] - dt).total_seconds()
-            print(
+            logger.info(
                 'birthday_schedule_task: sleep_until:{}, event:{}'.format(
                     dt + datetime.timedelta(seconds=timer),
                     ','.join(e['twitter_name'] for e in events),
@@ -76,7 +76,7 @@ class Twitter(commands.Cog):
                 )
                 channel = self.bot.get_channel(config.discord['channel']['twitter'])
                 await channel.send(tweet_link)
-        print('birthday_schedule_task: END')
+        logger.info('END birthday_schedule_task')
 
     @commands.command(name='sendtweet', aliases=['tweetsend'])
     @commands.is_owner()

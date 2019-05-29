@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 
 import discord
 from discord.ext import commands
@@ -7,6 +8,9 @@ from discord.ext import commands
 import config
 from utils import checks, quickembed
 from utils.fjclasses import DbHelper, DiscordUser, Match, Superstar
+
+
+logger = logging.getLogger(__name__)
 
 
 class Matches(commands.Cog):
@@ -35,7 +39,7 @@ class Matches(commands.Cog):
                 event_length_timer = 7200
             else:
                 channel = self.bot.get_channel(config.discord['channel']['general'])
-            print(
+            logger.info(
                 'showtime_schedule_task: channel:`{}` sleep until:`{}`'.format(
                     channel.name, dt + datetime.timedelta(seconds=event_start_timer)
                 )
@@ -48,7 +52,7 @@ class Matches(commands.Cog):
                 )
                 await self.bot.change_presence(activity=activity)
                 await asyncio.sleep(event_length_timer)
-        self.bot.log('```\nshowtime_schedule_task\nEND\n```')
+        logger.info('END showtime_schedule_task')
 
     @commands.command(name='currentmatch')
     async def current_match_info(self, ctx):
@@ -280,7 +284,7 @@ class Matches(commands.Cog):
         user = DiscordUser(ctx.author)
         rows = user.search_match_by_open_bets()
         if len(rows) > 5:
-            embed = quickembed.info(desc='Short View - Use `!match [id]`')
+            embed = quickembed.info(desc='Short View - Use `!match [id]` for full view')
             embed.set_author(name='Open Bet Matches')
             for row in rows:
                 match = Match(row.id)

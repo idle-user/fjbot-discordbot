@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import random
 from datetime import datetime
 
@@ -8,6 +9,8 @@ from discord.ext import commands
 import config
 from utils import checks, quickembed
 from utils.fjclasses import DiscordUser
+
+logger = logging.getLogger(__name__)
 
 
 class Member(commands.Cog):
@@ -51,11 +54,11 @@ class Member(commands.Cog):
                 if response['success']:
                     user.refresh()
                     embed = quickembed.success(desc=response['message'], user=user)
-                    print('{} registered'.format(user.username))
+                    logger.info('`{}` registered'.format(user.username))
                 else:
                     embed = quickembed.error(desc=response['message'], user=user)
-                    print(
-                        '{} failed to register - {}'.format(
+                    logger.warning(
+                        '`{}` failed to register - {}'.format(
                             user.username, response['message']
                         )
                     )

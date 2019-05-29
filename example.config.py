@@ -7,7 +7,7 @@ discord = {
     'invite_link': '',
     'server_id': 0,
     'owner_id': 0,
-    'role': {'default': 0, 'admin': 0, 'mod': 0, 'muted': 0},
+    'role': {'admin': 0, 'mod': 0, 'muted': 0},
     'channel': {
         'log': 0,
         'twitter': 0,

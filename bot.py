@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import logging
 import sys
 import traceback
 from datetime import datetime
@@ -15,6 +16,10 @@ from utils.fjclasses import (
     GuildNotOriginError,
     UserNotRegisteredError,
 )
+
+logFormatter = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+logging.basicConfig(format=logFormatter, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 bot = discord.ext.commands.Bot(
     command_prefix=config.general['command_prefix'],
@@ -44,7 +49,7 @@ async def pm_owner(content=None, embed=None):
 async def on_command_error(ctx, error):
     msg = None
     if isinstance(error, commands.CommandNotFound):
-        print(
+        logger.error(
             'CommandNotFound: {0} - '
             '{1.guild.name}({1.guild.id}) - '
             '{1.author}'.format(error, ctx)
@@ -53,7 +58,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         msg = 'Slow down! Try again in {:.1f} seconds.'.format(error.retry_after)
     elif isinstance(error, GuildNotOriginError):
-        print(
+        logger.error(
             'GuildNotOriginError: {0.command} - '
             '{0.guild.name}(0.guild.id) - '
             '{0.author}'.format(ctx)
@@ -66,7 +71,7 @@ async def on_command_error(ctx, error):
             'to your existing account.'
         )
     elif isinstance(error, commands.CommandError):
-        print(
+        logger.error(
             'CommandError: {0} - '
             '{1.guild.name}({1.guild.id}) - '
             '{1.author} - {1.command}'.format(error, ctx)
@@ -99,7 +104,7 @@ async def on_message(ctx):
 @bot.event
 async def on_ready():
     bot.start_dt = datetime.now()
-    print('[{}] DiscordBot `{}`: START'.format(bot.start_dt, bot.user.name))
+    logger.info('START DiscordBot `{}`'.format(bot.user.name))
 
 
 @bot.command(name='load', hidden=True)
@@ -142,8 +147,9 @@ if __name__ == '__main__':
     for extension in config.general['startup_cogs']:
         try:
             bot.load_extension(extension)
+            logger.info('Loaded extension `{}`'.format(extension))
         except Exception:
-            print(f'Failed to load extension {extension}.', file=sys.stderr)
+            logger.error(f'Failed to load extension `{extension}`', file=sys.stderr)
             traceback.print_exc()
     bot.run(config.discord['access_token'])
-    print('[{}] DiscordBot `{}`: END'.format(datetime.now(), bot.user.name))
+    logger.info('END DiscordBot `{}`'.format(bot.user.name))

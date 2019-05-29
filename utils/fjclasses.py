@@ -481,9 +481,17 @@ class Match(_Base, DbHelper):
                 self.teams.update({team_row['team']: team_row})
 
     def info_text_short(self):
-        return '{} | {}'.format(
-            self.match_type, ' vs '.join([self.teams[t]['members'] for t in self.teams])
-        )
+        if self.title:
+            return '{} | {} | {}'.format(
+                self.match_type,
+                self.title,
+                ' vs '.join([self.teams[t]['members'] for t in self.teams]),
+            )
+        else:
+            return '{} | {}'.format(
+                self.match_type,
+                ' vs '.join([self.teams[t]['members'] for t in self.teams]),
+            )
 
     def info_text(self):
         if self.completed:

@@ -75,6 +75,11 @@ python3.7 bot.py
 
 ## Update History
 
+2019.05.29
+* Added basic logging
+* Updated Match short-view text to include titles
+* Fixed Mute and Unmute commands
+
 2019.05.21
 * Updated Matches command to display short view if too many
 * Added current match command

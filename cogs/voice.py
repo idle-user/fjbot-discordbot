@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import discord
 import youtube_dl
@@ -6,6 +7,8 @@ from discord.ext import commands
 
 from utils import checks, quickembed
 from utils.fjclasses import DiscordUser
+
+logger = logging.getLogger(__name__)
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 ytdl_format_options = {
@@ -61,7 +64,7 @@ class Voice(commands.Cog):
     async def play_local(self, ctx, *, query):
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(query))
         ctx.voice_client.play(
-            source, after=lambda e: print('Player error: %s' % e) if e else None
+            source, after=lambda e: logger.error('Player error: %s' % e) if e else None
         )
         await ctx.send('Now playing: {}'.format(query))
         await ctx.send(
@@ -76,7 +79,8 @@ class Voice(commands.Cog):
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop)
             ctx.voice_client.play(
-                player, after=lambda e: print('Player error: %s' % e) if e else None
+                player,
+                after=lambda e: logger.error('Player error: %s' % e) if e else None,
             )
         await ctx.send(
             embed=quickembed.info(
@@ -91,7 +95,8 @@ class Voice(commands.Cog):
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
             ctx.voice_client.play(
-                player, after=lambda e: print('Player error: %s' % e) if e else None
+                player,
+                after=lambda e: logger.error('Player error: %s' % e) if e else None,
             )
         await ctx.send(
             embed=quickembed.info(
