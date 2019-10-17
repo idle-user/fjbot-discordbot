@@ -75,6 +75,12 @@ python3.7 bot.py
 
 ## Update History
 
+2019.10.17
+* Added AEW schedule
+* Added chatango PM logging/display
+* Removed Tweet tasks 
+* Fixes
+
 2019.05.29
 * Added basic logging
 * Updated Match short-view text to include titles

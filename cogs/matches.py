@@ -32,16 +32,21 @@ class Matches(commands.Cog):
             if event['ppv']:
                 channel = self.bot.get_channel(config.discord['channel']['ppv'])
             elif 'RAW' in event['name']:
-                channel = self.bot.get_channel(config.discord['channel']['raw'])
+                channel = self.bot.get_channel(config.discord['channel']['wwe'])
                 event_length_timer = 10800
             elif 'SmackDown' in event['name']:
-                channel = self.bot.get_channel(config.discord['channel']['sdlive'])
+                channel = self.bot.get_channel(config.discord['channel']['wwe'])
+                event_length_timer = 7200
+            elif 'AEW' in event['name']:
+                channel = self.bot.get_channel(config.discord['channel']['aew'])
                 event_length_timer = 7200
             else:
                 channel = self.bot.get_channel(config.discord['channel']['general'])
             logger.info(
-                'showtime_schedule_task: channel:`{}` sleep until:`{}`'.format(
-                    channel.name, dt + datetime.timedelta(seconds=event_start_timer)
+                'showtime_schedule_task: channel:`{}` events:`{}` sleep until:`{}`'.format(
+                    channel.name,
+                    event['name'],
+                    dt + datetime.timedelta(seconds=event_start_timer),
                 )
             )
             await asyncio.sleep(event_start_timer)
@@ -52,6 +57,7 @@ class Matches(commands.Cog):
                 )
                 await self.bot.change_presence(activity=activity)
                 await asyncio.sleep(event_length_timer)
+                await self.bot.change_presence(activity=None)
         logger.info('END showtime_schedule_task')
 
     @commands.command(name='currentmatch')

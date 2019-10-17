@@ -24,7 +24,8 @@ class Twitter(commands.Cog):
         )
         self.twitter = tweepy.API(self.auth)
         logger.info('START TwitterBot `{}`'.format(self.twitter.me().screen_name))
-        self.bot.loop.create_task(self.superstar_birthday_task())
+
+    # self.bot.loop.create_task(self.superstar_birthday_task())
 
     def __unload(self):
         pass

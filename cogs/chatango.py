@@ -78,6 +78,8 @@ class Chatango(commands.Cog):
                     )
                 else:
                     self.pm.message(ch.User(user.name), msg)
+                    msg = '[RESP] {}: {}'.format(user.name, msg)
+                    self.buffer.append(msg)
             except Exception:
                 logging.error('Failed to PM User:{}'.format(user.name))
 
@@ -96,6 +98,8 @@ class Chatango(commands.Cog):
                 )
                 self.sendUserMessage(user, msg)
             else:
+                msg = '[CMD] {}: {}'.format(user.name, message)
+                self.buffer.append(msg)
                 self.command_handler(user, args[0], args[1:])
 
         def command_handler(self, user, cmd, args=[]):

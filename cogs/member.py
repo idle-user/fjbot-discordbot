@@ -89,6 +89,7 @@ class Member(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='commands', aliases=['misc'])
+    @commands.cooldown(1, 300.0, commands.BucketType.user)
     async def misc_commands(self, ctx):
         user = DiscordUser(ctx.author)
         rows = user.chatroom_command_list()
@@ -99,11 +100,11 @@ class Member(commands.Cog):
                 msg = msg + '...'
                 embed = quickembed.info(desc='Chat Commands', user=user)
                 embed.add_field(name='\u200b', value=msg, inline=False)
-                await ctx.send(embed=embed)
+                await ctx.author.send(embed=embed)
                 msg = '...\n'
         embed = quickembed.info(desc='Chat Commands', user=user)
         embed.add_field(name='\u200b', value=msg, inline=False)
-        await ctx.send(embed=embed)
+        await ctx.author.send(embed=embed)
 
     @commands.command()
     async def report(self, ctx, member: discord.Member, *, reason='no reason'):
@@ -271,12 +272,18 @@ class Member(commands.Cog):
             return
         async for m in ctx.channel.history(limit=50):
             if m.author == member and not m.content.startswith('!'):
-                mock_msg = ''.join(
-                    [
-                        l.upper() if random.getrandbits(1) else l.lower()
-                        for l in m.content
-                    ]
-                )
+                mock_msg_list = []
+                alpha_cnt = 0
+                for l in m.content:
+                    if not l.isalpha():
+                        mock_msg_list.append(l)
+                        continue
+                    alpha_cnt += 1
+                    if alpha_cnt % 2:
+                        mock_msg_list.append(l.upper())
+                    else:
+                        mock_msg_list.append(l.lower())
+                mock_msg = ''.join(mock_msg_list)
                 embed = quickembed.info(
                     '```"{}"\n    - {}```'.format(mock_msg, member), user=user
                 )
