@@ -264,6 +264,9 @@ class DbHelper(_Database):
     def superstar_birthday_upcoming(self):
         return self.db.query('CALL usp_sel_superstar_birthday_upcoming()')
 
+    def chatroom_scheduler_list(self):
+        return self.db.query('SELECT * FROM chatroom_scheduler ORDER BY id')
+
 
 class DiscordUser(_User, DbHelper):
     def __init__(self, author):

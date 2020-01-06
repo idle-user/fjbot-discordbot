@@ -5,6 +5,7 @@ import discord
 import youtube_dl
 from discord.ext import commands
 
+import config
 from utils import checks, quickembed
 from utils.fjclasses import DiscordUser
 
@@ -106,7 +107,9 @@ class Voice(commands.Cog):
         )
 
     @commands.command(name='volume')
-    @checks.is_registered()
+    @commands.has_any_role(
+        config.discord['role']['admin'], config.discord['role']['mod']
+    )
     async def change_volume(self, ctx, volume: int):
         user = DiscordUser(ctx.author)
         if ctx.voice_client is None:
@@ -123,7 +126,9 @@ class Voice(commands.Cog):
         )
 
     @commands.command(name='vstop')
-    @checks.is_registered()
+    @commands.has_any_role(
+        config.discord['role']['admin'], config.discord['role']['mod']
+    )
     async def stop_audio(self, ctx):
         if ctx.voice_client:
             await ctx.voice_client.disconnect()

@@ -1,12 +1,32 @@
+# general
+general = {
+    'description': 'FJBot is a Discord Bot written in Python by FancyJesse',
+    'command_prefix': '!',
+    'startup_cogs': [
+        'cogs.admin',
+        'cogs.member',
+        'cogs.scheduler',
+        'cogs.matches',
+        'cogs.chatango',
+        'cogs.voice',
+        'cogs.twitter',
+    ],
+}
+
 # mysql
-mysql = {'host': '', 'db': '', 'user': '', 'secret': ''}
+mysql = {
+    'host': '',
+    'db': '',
+    'user': '',
+    'secret': '',
+}
 
 # discord
 discord = {
+    'owner': 0,
+    'guild': 0,
     'access_token': '',
     'invite_link': '',
-    'server_id': 0,
-    'owner_id': 0,
     'role': {'admin': 0, 'mod': 0, 'muted': 0},
     'channel': {
         'log': 0,
@@ -15,8 +35,8 @@ discord = {
         'general': 0,
         'voice': 0,
         'ppv': 0,
-        'raw': 0,
-        'sdlive': 0,
+        'wwe': 0,
+        'aew': 0,
     },
 }
 
@@ -29,4 +49,8 @@ twitter = {
 }
 
 # chatango
-chatango = {'username': '', 'secret': '', 'rooms': []}
+chatango = {
+    'username': '',
+    'secret': '',
+    'rooms': [],
+}

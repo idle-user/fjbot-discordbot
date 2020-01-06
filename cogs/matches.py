@@ -31,17 +31,8 @@ class Matches(commands.Cog):
             event_length_timer = 14400
             if event['ppv']:
                 channel = self.bot.get_channel(config.discord['channel']['ppv'])
-            elif 'RAW' in event['name']:
-                channel = self.bot.get_channel(config.discord['channel']['wwe'])
-                event_length_timer = 10800
-            elif 'SmackDown' in event['name']:
-                channel = self.bot.get_channel(config.discord['channel']['wwe'])
-                event_length_timer = 7200
-            elif 'AEW' in event['name']:
-                channel = self.bot.get_channel(config.discord['channel']['aew'])
-                event_length_timer = 7200
             else:
-                channel = self.bot.get_channel(config.discord['channel']['general'])
+                continue
             logger.info(
                 'showtime_schedule_task: channel:`{}` events:`{}` sleep until:`{}`'.format(
                     channel.name,

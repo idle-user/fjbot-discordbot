@@ -75,6 +75,12 @@ python3.7 bot.py
 
 ## Update History
 
+2020.01.06
+* Added scheduler cog for routine alerts
+* Fixed voice cog permissions for volume
+* Updated config file formatting
+* Removed weekly alerts from matches cog
+
 2019.10.17
 * Added AEW schedule
 * Added chatango PM logging/display
