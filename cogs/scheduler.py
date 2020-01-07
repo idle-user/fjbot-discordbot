@@ -85,7 +85,7 @@ class Scheduler(commands.Cog):
             if (
                 channel
                 and payload['name'] in self.scheduled_payloads
-                and payload.items() == self.scheduled_payloads[payload['name']]['data']
+                and payload.items() == self.scheduled_payloads[payload['name']]['data'].items()
             ):
                 await channel.send('@everyone', embed=embed)
             else:
