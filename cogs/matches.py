@@ -186,19 +186,15 @@ class Matches(commands.Cog):
     async def current_champions(self, ctx):
         return
 
-    @commands.command(name='rumble', aliases=['royalrumble'], enabled=False)
+    @commands.command(name='rumble', aliases=['royalrumble'])
     async def royalrumble_info(self, ctx):
+        # response = user.royalrumble_info() # TODO
         user = DiscordUser(ctx.author)
-        response = user.royalrumble_info()
-        if response['success']:
-            embed = quickembed.success(
-                desc='https://fancyjesse.com/projects/matches/royalrumble', user=user
-            )
-            # TODO
-        else:
-            embed = quickembed.error(
-                desc='No Royal Rumble match info available', user=user
-            )
+        link = user.request_login_link()
+        link = link.replace('projects/matches?', 'projects/matches/royalrumble?')
+        msg = 'Join the rumble here! (link expires in 5 minutes)\n<{}>'.format(link)
+        await ctx.author.send(embed=quickembed.general(desc=msg, user=user))
+        embed = quickembed.success(user=user, desc='Rumble link DMed ;)')
         await ctx.send(embed=embed)
 
     @commands.command(name='joinrumble', enabled=False)

@@ -75,6 +75,10 @@ python3.7 bot.py
 
 ## Update History
 
+2020.01.17
+* Fixed Scheduler COG
+* Added support to Royal Rumble entry command
+
 2020.01.06
 * Added scheduler cog for routine alerts
 * Fixed voice cog permissions for volume

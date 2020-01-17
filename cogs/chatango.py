@@ -111,6 +111,7 @@ class Chatango(commands.Cog):
                 msg = self.login_link(user)
             elif cmd == '!help':
                 msg = (
+                    '!discord - Discord invite link | '
                     '!login - Login link | '
                     '!resetpw - Change password | '
                     '!rate - Rate the current match | '
@@ -200,8 +201,11 @@ class Chatango(commands.Cog):
         def bet_match(self, user, args=[]):
             return 'Full command not available yet on Chatango. Use !login'
 
-        def royalrumble_entry(self, user, args=[]):
-            return 'Command not available yet on Chatango. Try !discord'
+        def join_rumble(self, user, args=[]):
+            logger.info('`{}` requested a rumble link'.format(user.name))
+            link = user.request_login_link()
+            link = link.replace('projects/matches?', 'projects/matches/royalrumble?')
+            return 'Join the rumble here! {} (link expires in 5 minutes)'.format(link)
 
         def open_matches(self, user):
             rows = user.search_match_by_open_bets()
