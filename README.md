@@ -74,6 +74,9 @@ python3.7 bot.py
 
 
 ## Update History
+2020-03-02
+* Number formatting
+* README overhaul coming soon
 
 2020.01.17
 * Fixed Scheduler COG

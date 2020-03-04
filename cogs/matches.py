@@ -340,7 +340,7 @@ class Matches(commands.Cog):
             embedquestion.add_field(
                 name='Info', value=match.info_text_short(), inline=False
             )
-            embedquestion.add_field(name='Betting', value=bet, inline=True)
+            embedquestion.add_field(name='Betting', value='{:,}'.format(bet), inline=True)
             embedquestion.add_field(
                 name='Betting On', value=match.teams[team]['members'], inline=True
             )
@@ -352,7 +352,7 @@ class Matches(commands.Cog):
             if confirm.content == 'Y':
                 response = user.place_bet(match_id, team, bet)
                 if response['success']:
-                    msg = 'Placed `{}` point bet on `{}`'.format(
+                    msg = 'Placed `{:,}` point bet on `{}`'.format(
                         bet, match.teams[team]['members']
                     )
                     embed = quickembed.success(desc=msg, user=user)
