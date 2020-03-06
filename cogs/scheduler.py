@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 
+import discord
 from discord.ext import tasks, commands
 
 import config
@@ -17,6 +18,7 @@ class Scheduler(commands.Cog):
         self.bot = bot
         self.scheduled_payloads = {}
         self.check_scheduler.start()
+        self.bot.loop.create_task(self.showtime_schedule_task())
 
     @tasks.loop(minutes=1.0)
     async def check_scheduler(self):
@@ -102,9 +104,7 @@ class Scheduler(commands.Cog):
             logger.info('Task End - `{}`'.format(payload['name']))
 
     @commands.command(name='scheduler', hidden=True)
-    @commands.has_any_role(
-        config.discord['role']['admin'], config.discord['role']['mod']
-    )
+    @commands.is_owner()
     @checks.is_registered()
     async def scheduler_pending(self, ctx):
         user = DiscordUser(ctx.author)
@@ -119,6 +119,39 @@ class Scheduler(commands.Cog):
             ),
         )
         await ctx.send(embed=embed)
+
+    async def showtime_schedule_task(self):
+        await self.bot.wait_until_ready()
+        while not self.bot.is_closed():
+            event = DbHelper().future_events()[0]
+            dt = datetime.datetime.now()
+            event_start_timer = (event['date_time'] - dt).total_seconds()
+            embed = quickembed.info(desc='Event')
+            embed.add_field(
+                name='{} has begun!'.format(event['name']), value='\u200b', inline=False
+            )
+            event_length_timer = 14400
+            if event['ppv']:
+                channel = self.bot.get_channel(config.discord['channel']['ppv'])
+            else:
+                continue
+            logger.info(
+                'showtime_schedule_task: channel:`{}` events:`{}` sleep until:`{}`'.format(
+                    channel.name,
+                    event['name'],
+                    dt + datetime.timedelta(seconds=event_start_timer),
+                )
+            )
+            await asyncio.sleep(event_start_timer)
+            if channel:
+                await channel.send('@everyone', embed=embed)
+                activity = discord.Activity(
+                    type=discord.ActivityType.watching, name=event['name']
+                )
+                await self.bot.change_presence(activity=activity)
+                await asyncio.sleep(event_length_timer)
+                await self.bot.change_presence(activity=None)
+        logger.info('END showtime_schedule_task')
 
 
 def setup(bot):

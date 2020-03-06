@@ -89,7 +89,7 @@ class Member(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='commands', aliases=['misc'])
-    @commands.cooldown(1, 300.0, commands.BucketType.user)
+    @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def misc_commands(self, ctx):
         user = DiscordUser(ctx.author)
         rows = user.chatroom_command_list()
@@ -127,7 +127,7 @@ class Member(commands.Cog):
     @commands.command()
     async def invite(self, ctx):
         embed = quickembed.info(
-            desc='Invite Link\n{}'.format(config.discord['invite_link']),
+            desc='Invite Link\n{}'.format(config.general['guild_link']),
             user=DiscordUser(ctx.author),
         )
         await ctx.send(embed=embed)
@@ -149,6 +149,7 @@ class Member(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
+    @commands.cooldown(1, 10.0, commands.BucketType.user)
     async def countdown(self, ctx, *, startnum=5):
         startnum = 5 if startnum > 10 else startnum
         user = DiscordUser(ctx.author)

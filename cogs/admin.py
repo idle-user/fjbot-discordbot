@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 
-import config
 from utils import checks, quickembed
 from utils.fjclasses import DiscordUser
 
@@ -10,8 +9,27 @@ class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.command(name='changeprefix', hidden=True)
+    @commands.has_permissions(administrator=True)
+    async def update_guild_prefix(self, ctx, prefix):
+        user = DiscordUser(ctx.author)
+        if len(prefix) > 3:
+            embed = quickembed.error(
+                desc='Prefix can not be longer than 3 characters', user=user
+            )
+        else:
+            user.update_guild_info(ctx.guild, prefix)
+            stored_prefix = user.guild_info(ctx.guild.id)['prefix']
+            if prefix == stored_prefix:
+                embed = quickembed.success(
+                    desc='Prefix updated to **{}**'.format(stored_prefix), user=user,
+                )
+            else:
+                embed = quickembed.error(desc='Failed to update prefix', user=user)
+        await ctx.send(embed=embed)
+
     @commands.command(name='clear', hidden=True)
-    @commands.is_owner()
+    @commands.has_permissions(administrator=True)
     async def delete_messages(self, ctx, limit: int = 1):
         await ctx.message.delete()
         await ctx.channel.purge(limit=limit)
@@ -23,9 +41,7 @@ class Admin(commands.Cog):
         await ctx.send(msg)
 
     @commands.command(name='spam', hidden=True)
-    @commands.has_any_role(
-        config.discord['role']['admin'], config.discord['role']['mod']
-    )
+    @commands.has_permissions(manage_messages=True)
     @checks.is_registered()
     async def delete_spam_messages(self, ctx):
         msgs = []
@@ -73,7 +89,7 @@ class Admin(commands.Cog):
         await self.bot.change_presence(activity=activity)
 
     @commands.command(name='addcommand', hidden=True)
-    @commands.has_role('Admin')
+    @commands.is_owner()
     @checks.is_registered()
     async def add_discord_command(self, ctx, command, *, response):
         user = DiscordUser(ctx.author)
@@ -85,11 +101,10 @@ class Admin(commands.Cog):
             )
         else:
             embed = quickembed.error(desc='Failed', user=user)
-            await ctx.send('Failed')
-        ctx.send(embed=embed)
+        await ctx.send(embed=embed)
 
     @commands.command(name='updatecommand', hidden=True)
-    @commands.has_role('Admin')
+    @commands.is_owner()
     @checks.is_registered()
     async def update_discord_command(self, ctx, command, *, response):
         user = DiscordUser(ctx.author)
@@ -101,13 +116,10 @@ class Admin(commands.Cog):
             )
         else:
             embed = quickembed.error(desc='Failed', user=user)
-            await ctx.send('Failed')
-        ctx.send(embed=embed)
+        await ctx.send(embed=embed)
 
     @commands.command(name='mute', hidden=True)
-    @commands.has_any_role(
-        config.discord['role']['admin'], config.discord['role']['mod']
-    )
+    @commands.has_permissions(manage_roles=True)
     @checks.is_registered()
     async def mute_member(self, ctx, member: discord.Member):
         user = DiscordUser(ctx.author)
@@ -124,9 +136,7 @@ class Admin(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='unmute', hidden=True)
-    @commands.has_any_role(
-        config.discord['role']['admin'], config.discord['role']['mod']
-    )
+    @commands.has_permissions(manage_roles=True)
     @checks.is_registered()
     async def unmute_member(self, ctx, member: discord.Member):
         user = DiscordUser(ctx.author)

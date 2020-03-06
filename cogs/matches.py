@@ -340,7 +340,9 @@ class Matches(commands.Cog):
             embedquestion.add_field(
                 name='Info', value=match.info_text_short(), inline=False
             )
-            embedquestion.add_field(name='Betting', value='{:,}'.format(bet), inline=True)
+            embedquestion.add_field(
+                name='Betting', value='{:,}'.format(bet), inline=True
+            )
             embedquestion.add_field(
                 name='Betting On', value=match.teams[team]['members'], inline=True
             )

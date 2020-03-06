@@ -1,7 +1,14 @@
+# debug
+debug = 0
+log_format = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+
 # general
 general = {
     'description': 'FJBot is a Discord Bot written in Python by FancyJesse',
-    'command_prefix': '!',
+    'guild_link': 'https://discord.gg/Q9mX5hQ',
+    'owner_id': 192077042722799616,
+    'guild_id': 361689774723170304,
+    'default_prefix': '!',
     'startup_cogs': [
         'cogs.admin',
         'cogs.member',
@@ -10,6 +17,7 @@ general = {
         'cogs.chatango',
         'cogs.voice',
         'cogs.twitter',
+        'cogs.fjbucks',
     ],
 }
 
@@ -23,11 +31,7 @@ mysql = {
 
 # discord
 discord = {
-    'owner': 0,
-    'guild': 0,
     'access_token': '',
-    'invite_link': '',
-    'role': {'admin': 0, 'mod': 0, 'muted': 0},
     'channel': {
         'log': 0,
         'twitter': 0,

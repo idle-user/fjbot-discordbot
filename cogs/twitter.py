@@ -25,7 +25,8 @@ class Twitter(commands.Cog):
         self.twitter = tweepy.API(self.auth)
         logger.info('START TwitterBot `{}`'.format(self.twitter.me().screen_name))
 
-    # self.bot.loop.create_task(self.superstar_birthday_task())
+        # self.bot.loop.create_task(self.superstar_birthday_task())
+        # self.bot.loop.create_task(self.stream_test())
 
     def __unload(self):
         pass
@@ -35,12 +36,29 @@ class Twitter(commands.Cog):
 
     def live_tweet(self, msg):
         status = self.twitter.update_status(msg)
-        link = 'https://twitter.com/statuses/{}'.format(status.id)
+        link = 'https://twitter.com/{}/status/{}'.format(
+            status.user.screen_name, status.id
+        )
         return link
 
     async def tweet_log(self, message):
         channel = self.bot.get_channel(config.discord['channel']['twitter'])
         await channel.send(message)
+
+    class MyStreamListener(tweepy.StreamListener):
+        def on_data(self, data):
+            print(data)
+            return True
+
+        def on_error(self, status):
+            print(status)
+
+    async def stream_test(self):
+        await self.bot.wait_until_ready()
+        listener = self.MyStreamListener()
+        self.myStream = tweepy.Stream(auth=self.auth, listener=listener)
+        self.myStream.filter(track=['jesse'], is_async=True)
+        print('end stream_test')
 
     async def superstar_birthday_task(self):
         await self.bot.wait_until_ready()

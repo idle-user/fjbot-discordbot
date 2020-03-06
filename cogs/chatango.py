@@ -89,7 +89,7 @@ class Chatango(commands.Cog):
             args = message.lower().split(' ')
             user = ChatangoUser(author)
             if '!discord' in args[0]:
-                msg = 'Discord Channel: {}'.format(config.discord['invite_link'])
+                msg = 'Discord Channel: {}'.format(config.discord['guild_link'])
                 self.sendUserMessage(user, msg)
             elif not user.is_registered() and 'register' not in args[0]:
                 msg = (

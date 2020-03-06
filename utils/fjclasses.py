@@ -184,6 +184,21 @@ class _User(_Base):
     def join_royalrumble(self):
         raise NotImplementedError
 
+    def fjbucks_wallet(self):
+        return self.db.query('CALL usp_sel_user_fjbucks_wallet_by_id(%s)', (self.id,))[
+            0
+        ]
+
+    def fjbucks_transaction(self, amount, note):
+        return self.db.query(
+            'CALL usp_ins_fjbucks_transaction(%s, %s, %s)', (self.id, amount, note)
+        )[0]
+
+    def fjbucks_check(self, amount):
+        return self.db.query(
+            'CALL usp_sel_fjbucks_transaction_check(%s, %s)', (self.id, amount)
+        )[0]
+
 
 class DbHelper(_Database):
     def __init__(self):
@@ -242,6 +257,18 @@ class DbHelper(_Database):
 
     def leaderboard(self, season):
         return self.db.query('CALL usp_sel_user_leaderboard(%s)', (season,))
+
+    def guild_info(self, guild_id):
+        rows = self.db.query('SELECT prefix FROM guild_info WHERE id=%s', (guild_id,))
+        if rows:
+            return rows[0]
+        return False
+
+    def update_guild_info(self, guild, prefix):
+        return self.db.query(
+            'CALL usp_ins_guild_info(%s, %s, %s, %s)',
+            (guild.id, guild.name, guild.owner_id, prefix),
+        )
 
     def chatroom_command(self, command):
         rows = self.db.query('CALL usp_sel_chatroom_command(%s)', (command,))
@@ -311,6 +338,24 @@ class DiscordUser(_User, DbHelper):
             name='Available Points',
             value='{:,}'.format(row['available_points']),
             inline=True,
+        )
+        return embed
+
+    def fjbucks_wallet_embed(self):
+        row = self.fjbucks_wallet()
+        embed = quickembed.general(desc='FJBucks Wallet', user=self)
+        embed.add_field(
+            name='Balance', value='{:,}'.format(row['balance']), inline=True
+        )
+        embed.add_field(
+            name='Transactions',
+            value='{:,}'.format(row['transaction_cnt']),
+            inline=False,
+        )
+        embed.add_field(
+            name='Last Transaction (PST)',
+            value=row['last_transaction_on'],
+            inline=False,
         )
         return embed
 

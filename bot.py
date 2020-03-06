@@ -17,13 +17,25 @@ from utils.fjclasses import (
     UserNotRegisteredError,
 )
 
-logFormatter = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
-logging.basicConfig(format=logFormatter, level=logging.INFO)
+
+if config.debug:
+    logging.basicConfig(format=config.log_format, level=logging.DEBUG)
+else:
+    logging.basicConfig(format=config.log_format, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def prefix(bot, ctx):
+    guild_info = DbHelper().guild_info(ctx.guild.id)
+    if not guild_info:
+        logger.info('No record found for guild: {0.name}({0.id})'.format(ctx.guild))
+        DbHelper().update_guild_info(ctx.guild, config.general['default_prefix'])
+        guild_info = DbHelper().guild_info(ctx.guild.id)
+    return guild_info['prefix']
+
+
 bot = discord.ext.commands.Bot(
-    command_prefix=config.general['command_prefix'],
-    description=config.general['description'],
+    command_prefix=prefix, description=config.general['description'],
 )
 
 
@@ -90,7 +102,7 @@ async def on_command_error(ctx, error):
 async def on_message(ctx):
     if ctx.author.bot:
         return
-    if not ctx.content.startswith(config.general['command_prefix']):
+    if not ctx.content.startswith(prefix(bot, ctx)):
         return
     res = DbHelper().chatroom_command(ctx.content.split(' ')[0])
     if res['success']:
@@ -104,7 +116,7 @@ async def on_message(ctx):
 @bot.event
 async def on_ready():
     bot.start_dt = datetime.now()
-    logger.info('START DiscordBot `{}`'.format(bot.user.name))
+    logger.info('START bot.py `{}`'.format(bot.user.name))
 
 
 @bot.command(name='load', hidden=True)
@@ -152,4 +164,4 @@ if __name__ == '__main__':
             logger.error(f'Failed to load extension `{extension}`', file=sys.stderr)
             traceback.print_exc()
     bot.run(config.discord['access_token'])
-    logger.info('END DiscordBot `{}`'.format(bot.user.name))
+    logger.info('END bot.py `{}`'.format(bot.user.name))
