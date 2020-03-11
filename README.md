@@ -1,4 +1,4 @@
-# FJBot
+# FJBot-DiscordBot
 
 [![Discord Chat](https://discordapp.com/api/guilds/361689774723170304/embed.png)](https://discord.gg/Q9mX5hQ/)
 [![status](https://img.shields.io/badge/Project%20Status-work--in--progress-green.svg)](#)
@@ -21,42 +21,42 @@ Now I continue support on the bot as a hobby and development experience.
 ## Sample
 
 Register an account
-```
+```console
 !register
 ```
 
 Get a login link via PM
-```
+```console
 !login
 ```
 
 Display current stats
-```
+```console
 !stats
 ```
 
 Display current leaderboard
-```
+```console
 !top
 ```
 
 Display Superstar/Wrestler's info
-```
+```console
 !bio Alexa
 ```
 
 Display current matches
-```
+```console
 !matches
 ```
 
 Bet on a match
-```
+```console
 !bet 100 Brock
 ```
 
 Display current bets
-```
+```console
 !bets
 ```
 
@@ -72,23 +72,23 @@ Display current bets
 ## Setup & Deploy (Development)
 
 Clone repository
-```
+```console
 git clone https://github.com/FancyJesse/fjbot.git
 ```
 
 Create config file. See [example.config.py](example.config.py)
-```
+```console
 ./fjbot/config.py
 ```
 
 Run MySQL Database setup
 *There are many tables, procedures, and triggers required to run accounts properly*
-```
+```console
 # TODO
 ```
 
 Run bot
-```
+```console
 python3 bot.py
 ```
 

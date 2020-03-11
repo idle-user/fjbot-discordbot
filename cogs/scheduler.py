@@ -1,3 +1,4 @@
+"""This cog handles scheduled messages to a channel."""
 import asyncio
 import datetime
 import logging
@@ -9,11 +10,12 @@ import config
 from utils import checks, quickembed
 from utils.fjclasses import DbHelper, DiscordUser
 
-
 logger = logging.getLogger(__name__)
 
 
 class Scheduler(commands.Cog):
+    """The Scheduler cog class."""
+
     def __init__(self, bot):
         self.bot = bot
         self.scheduled_payloads = {}
@@ -22,6 +24,16 @@ class Scheduler(commands.Cog):
 
     @tasks.loop(minutes=1.0)
     async def check_scheduler(self):
+        """A routine task that checks for the weekly schedule and updates pending items when appropriate.
+
+        .. Note::
+            This task is executed every minute to check for an update. New tasks are created by sending it to
+            :func:`cogs.scheduler.scheduler_task`.
+
+        .. Important::
+            Python 3.7 does not have an easy way for naming a task. A dictionary of tasks is created and handled
+            instead.
+        """
         await self.bot.wait_until_ready()
         now = datetime.datetime.now()
         key_flag = '%s_flag' % now.strftime('%A').lower()
@@ -64,15 +76,24 @@ class Scheduler(commands.Cog):
                 self.scheduled_payloads[payload['name']]['task'] = payload_task
 
     async def scheduler_task(self, payload):
+        """Handles a single weekly scheduled message by creating the message and sleeping until the appropriate time
+        defined in the message.
+
+        .. important::
+            The channel the message is sent to is defined in :mod:`config`.
+            Modify where appropriate for your own Discord server.
+
+        :param payload: The event details to deliver. See :func:`utils.fjclasses.DbHelper.chatroom_scheduler_list`.
+        """
         try:
             embed = quickembed.info(desc='Event')
             embed.add_field(name=payload['message'], value='\u200b', inline=False)
             if payload['name'] in ['RAW', 'SmackDown', 'NXT']:
-                channel = self.bot.get_channel(config.discord['channel']['wwe'])
+                channel = self.bot.get_channel(config.base['channel']['wwe'])
             elif 'AEW' in payload['name']:
-                channel = self.bot.get_channel(config.discord['channel']['aew'])
+                channel = self.bot.get_channel(config.base['channel']['aew'])
             else:
-                channel = self.bot.get_channel(config.discord['channel']['general'])
+                channel = self.bot.get_channel(config.base['channel']['general'])
             logger.info(
                 'Task scheduled - channel:`{}` name:`{}` sleep_until:`{}`'.format(
                     channel.name,
@@ -107,6 +128,13 @@ class Scheduler(commands.Cog):
     @commands.is_owner()
     @checks.is_registered()
     async def scheduler_pending(self, ctx):
+        """Displays a list of pending alert messages.
+
+        .. note::
+            Only the bot owner can use this.
+
+        :param ctx: The invocation context.
+        """
         user = DiscordUser(ctx.author)
         embed = quickembed.info(desc="Today's Scheduled Alerts (PT)", user=user)
         embed.add_field(
@@ -121,6 +149,12 @@ class Scheduler(commands.Cog):
         await ctx.send(embed=embed)
 
     async def showtime_schedule_task(self):
+        """Retrieves the closest event from the database and creates a scheduled message to post to a channel.
+
+        .. important::
+            The channel the message is sent to is defined in :mod:`config`.
+            Modify where appropriate for your own Discord server.
+        """
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
             event = DbHelper().future_events()[0]
@@ -132,7 +166,7 @@ class Scheduler(commands.Cog):
             )
             event_length_timer = 14400
             if event['ppv']:
-                channel = self.bot.get_channel(config.discord['channel']['ppv'])
+                channel = self.bot.get_channel(config.base['channel']['ppv'])
             else:
                 continue
             logger.info(
@@ -155,4 +189,8 @@ class Scheduler(commands.Cog):
 
 
 def setup(bot):
+    """Required for cogs.
+
+    :param bot: The Discord bot.
+    """
     bot.add_cog(Scheduler(bot))
