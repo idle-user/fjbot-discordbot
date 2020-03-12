@@ -12,7 +12,7 @@ class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name='changeprefix', hidden=True)
+    @commands.command(name='update-prefix', hidden=True)
     @commands.has_permissions(administrator=True)
     async def update_guild_prefix(self, ctx, prefix):
         """Updates the command prefix for the Discord server.
@@ -156,7 +156,7 @@ class Admin(commands.Cog):
         activity = discord.Activity(type=discord.ActivityType.listening, name=name)
         await self.bot.change_presence(activity=activity)
 
-    @commands.command(name='addcommand', hidden=True)
+    @commands.command(name='add-command', hidden=True)
     @commands.is_owner()
     @checks.is_registered()
     async def add_discord_command(self, ctx, command, *, response):
@@ -177,7 +177,7 @@ class Admin(commands.Cog):
             embed = quickembed.error(desc='Failed', user=user)
         await ctx.send(embed=embed)
 
-    @commands.command(name='updatecommand', hidden=True)
+    @commands.command(name='update-command', hidden=True)
     @commands.is_owner()
     @checks.is_registered()
     async def update_discord_command(self, ctx, command, *, response):

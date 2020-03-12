@@ -95,13 +95,17 @@ python3 bot.py
 
 ## Update History
 
+2020-03-12
+* Command name changes
+* Formatting
+
+<details>
+    <summary>see more</summary>
+
 2020-03-11
 * Docstring and a lot of documentation
 * Reconfigured config.py format
 * Bug fixes
-
-<details>
-    <summary>see more</summary>
 
 2020-03-06
 * Updated config.py format

@@ -400,7 +400,7 @@ class Chatango(commands.Cog):
             await asyncio.sleep(1)
         logger.info('END chatango_log_task')
 
-    @commands.command(name='chsend')
+    @commands.command(name='chatango-send', aliases=['ch-send'])
     @commands.is_owner()
     async def send_message(self, ctx, *, message: str):
         """Sends a message to all of the rooms the Chatango bot is a member of.
@@ -426,7 +426,7 @@ class Chatango(commands.Cog):
         else:
             await ctx.send('{}, Chatango message cancelled.'.format(ctx.author.mention))
 
-    @commands.command(name='chusers')
+    @commands.command(name='chatango-users', aliases=['ch-users', 'ch-user-list'])
     @commands.is_owner()
     async def display_users(self, ctx):
         """Displays a list of all the Chatango users the Chatango bot has read messages from.

@@ -135,7 +135,7 @@ class Twitter(commands.Cog):
                 await channel.send(tweet_link)
         logger.info('END birthday_schedule_task')
 
-    @commands.command(name='sendtweet', aliases=['tweetsend'])
+    @commands.command(name='send-tweet', aliases=['tweet-send'])
     @commands.is_owner()
     async def send_tweet(self, ctx, *, message: str):
         """Sends outs a tweet and posts a link of it to the channel.
@@ -155,7 +155,7 @@ class Twitter(commands.Cog):
         else:
             await ctx.send('`Tweet cancelled.`')
 
-    @commands.command(name='tweets', aliases=['viewtweets'])
+    @commands.command(name='tweets', aliases=['view-tweets'])
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     @checks.is_registered()
     async def superstar_tweets(self, ctx, name, limit=1):

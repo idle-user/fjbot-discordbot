@@ -16,7 +16,7 @@ class Matches(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name='currentmatch')
+    @commands.command(name='current-match', aliases=['currentmatch'])
     async def current_match_info(self, ctx):
         """Display details for the current `Match`.
 
@@ -30,7 +30,7 @@ class Matches(commands.Cog):
             embed = quickembed.error(desc='No match found', user=user)
         await ctx.send(embed=embed)
 
-    @commands.command(name='lastmatch', aliases=['ratestart'])
+    @commands.command(name='last-match', aliases=['lastmatch'])
     async def recent_match_info(self, ctx):
         """Displays details for the last completed `Match`.
 
@@ -44,7 +44,7 @@ class Matches(commands.Cog):
             embed = quickembed.error(desc='No match found', user=user)
         await ctx.send(embed=embed)
 
-    @commands.command(name='events', aliases=['ppv', 'ppvs'])
+    @commands.command(name='events', aliases=['ppv'])
     async def upcoming_events(self, ctx):
         """Displays a list of upcoming PPV events in order.
 
@@ -61,7 +61,7 @@ class Matches(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name='info', aliases=['bio', 'superstar'])
+    @commands.command(name='info', aliases=['bio', 'superstar', 'lookup'])
     async def superstar_info(self, ctx, *, name):
         """Displays the `Superstar`'s information.
 
@@ -253,7 +253,7 @@ class Matches(commands.Cog):
         """
         await ctx.send(embed=DiscordUser(ctx.author).stats_embed(season=1))
 
-    @commands.command(name='bets', aliases=['currentbets', 'mybets'])
+    @commands.command(name='bets', aliases=['mybets', 'my-bets'])
     @checks.is_registered()
     async def user_current_bets(self, ctx):
         """Displays the user's current bets for `Match`es.
@@ -284,7 +284,7 @@ class Matches(commands.Cog):
             embed = quickembed.error(desc='No current bets placed', user=user)
         await ctx.send(embed=embed)
 
-    @commands.command(name='match')
+    @commands.command(name='match', aliases=['match-info'])
     async def match_info(self, ctx, match_id=None):
         """Display info the `Match`.
 
@@ -310,7 +310,7 @@ class Matches(commands.Cog):
                     )
                 )
 
-    @commands.command(name='matches', aliases=['openmatches'])
+    @commands.command(name='matches', aliases=['open-mmatches'])
     @commands.cooldown(1, 60.0, commands.BucketType.user)
     async def open_matches(self, ctx):
         """Lists the available `Match`es to bet on.
@@ -436,7 +436,7 @@ class Matches(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(name='rate', aliases=['ratematch'])
+    @commands.command(name='rate', aliases=['rate-match', 'match-rate'])
     @checks.is_registered()
     async def rate_match(self, ctx, *args):
         """Adds a 0-5 star rating to a `Match`.

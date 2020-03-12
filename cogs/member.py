@@ -107,7 +107,9 @@ class Member(commands.Cog):
         embed = quickembed.success(user=user, desc='Login link DMed')
         await ctx.send(embed=embed)
 
-    @commands.command(name='resetpw', alias=['pwreset'])
+    @commands.command(
+        name='reset-pw', alias=['password-reset, password-reset, pw-reset']
+    )
     @checks.is_registered()
     async def user_reset_password_link(self, ctx):
         """Sends a reset password link for the website to the user through DM.
@@ -125,7 +127,7 @@ class Member(commands.Cog):
         embed = quickembed.success(user=user, desc='Link DMed')
         await ctx.send(embed=embed)
 
-    @commands.command(name='commands', aliases=['misc'])
+    @commands.command(name='commands', aliases=['misc', 'command-list'])
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def misc_commands(self, ctx):
         """Sends the list of available *dumb commands* to the user through DM.
@@ -200,7 +202,7 @@ class Member(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name='role', aliases=['roles', 'toprole'])
+    @commands.command(name='roles', aliases=['my-roles'])
     async def member_roles(self, ctx):
         """Displays the roles the requesting user currently has in the server.
 
@@ -250,7 +252,7 @@ class Member(commands.Cog):
         embed.add_field(name='GO!', value='\u200b', inline=False)
         await msg.edit(embed=embed)
 
-    @commands.command(name='flip', aliases=['coin'])
+    @commands.command(name='flip', aliases=['coin', 'coin-flip', 'flip-coin'])
     async def flip_coin(self, ctx):
         """Performs a basic coin flip and displays the result.
 
@@ -261,7 +263,7 @@ class Member(commands.Cog):
         embed.add_field(name=result, value='\u200b', inline=False)
         await ctx.send(embed=embed)
 
-    @commands.command(name='roll', aliases=['dice'])
+    @commands.command(name='roll', aliases=['dice', 'd6'])
     async def roll_dice(self, ctx):
         """Performs a basic dice roll and returns the result.
 
@@ -271,6 +273,41 @@ class Member(commands.Cog):
         embed = quickembed.info(desc='Dice roll', user=DiscordUser(ctx.author))
         embed.add_field(name=result, value='\u200b', inline=False)
         await ctx.send(embed=embed)
+
+    @commands.command(name='mock')
+    async def mock_member(self, ctx, member: discord.Member = None):
+        """Spongebob mocking memes a Discord users last message.
+
+        .. note::
+            The user being mocked must have a message within the last 50 messages in the channel that is not a command.
+            Otherwise, nothing will happen.
+
+            You cannot mock non-Discord user or a bot.
+
+        :param ctx: The invocation context. The invocation context.
+        :param member: The Discord user to mock.
+        """
+        user = DiscordUser(ctx.author)
+        if member and not member.bot:
+            async for m in ctx.channel.history(limit=50):
+                if m.author == member and not m.content.startswith('!'):
+                    mock_msg_list = []
+                    alpha_cnt = 0
+                    for letter in m.content:
+                        if not letter.isalpha():
+                            mock_msg_list.append(letter)
+                            continue
+                        alpha_cnt += 1
+                        if alpha_cnt % 2:
+                            mock_msg_list.append(letter.upper())
+                        else:
+                            mock_msg_list.append(letter.lower())
+                    mock_msg = ''.join(mock_msg_list)
+                    embed = quickembed.info(
+                        '```"{}"\n    - {}```'.format(mock_msg, member), user=user
+                    )
+                    await ctx.send(embed=embed)
+                    break
 
     @commands.command(name='slap')
     async def slap_member(
@@ -383,40 +420,41 @@ class Member(commands.Cog):
             )
         await ctx.send(embed=embed)
 
-    @commands.command(name='mock')
-    async def mock_member(self, ctx, member: discord.Member = None):
-        """Spongebob mocking memes a Discord users last message.
-
-        .. note::
-            The user being mocked must have a message within the last 50 messages in the channel that is not a command.
-            Otherwise, nothing will happen.
-
-            You cannot mock non-Discord user or a bot.
+    @commands.command(name='punch')
+    async def punch_member(
+        self, ctx, member: discord.Member = None, *, reason='no reason provided'
+    ):
+        """Punch another Discord user.
 
         :param ctx: The invocation context. The invocation context.
-        :param member: The Discord user to mock.
+        :param member: The Discord user to punch.
+        :param reason: The reason for the punch.
         """
         user = DiscordUser(ctx.author)
-        if member and not member.bot:
-            async for m in ctx.channel.history(limit=50):
-                if m.author == member and not m.content.startswith('!'):
-                    mock_msg_list = []
-                    alpha_cnt = 0
-                    for letter in m.content:
-                        if not letter.isalpha():
-                            mock_msg_list.append(letter)
-                            continue
-                        alpha_cnt += 1
-                        if alpha_cnt % 2:
-                            mock_msg_list.append(letter.upper())
-                        else:
-                            mock_msg_list.append(letter.lower())
-                    mock_msg = ''.join(mock_msg_list)
-                    embed = quickembed.info(
-                        '```"{}"\n    - {}```'.format(mock_msg, member), user=user
-                    )
-                    await ctx.send(embed=embed)
-                    break
+        if not member:
+            embed = quickembed.info(
+                '{} tried to hug someone, but no one was there.'.format(user.mention),
+                user=user,
+            )
+        elif member.bot:
+            embed = quickembed.info(
+                "{} tried to punch a {}, but hurt their hand instead.".format(
+                    user.mention, member.mention
+                ),
+                user=user,
+            )
+        elif member == ctx.author:
+            embed = quickembed.info(
+                '{} punched themself. Idiot.'.format(user.mention), user=user
+            )
+        else:
+            embed = quickembed.info(
+                '{} punched {}\nReason: {}'.format(
+                    user.mention, member.mention, reason
+                ),
+                user=user,
+            )
+        await ctx.send(embed=embed)
 
 
 def setup(bot):
