@@ -76,7 +76,7 @@ Clone repository
 git clone https://github.com/FancyJesse/fjbot.git
 ```
 
-Create config file. See [example.config.py](example.config.py)
+Create config file. See [config.py](config.py)
 ```console
 ./fjbot/config.py
 ```

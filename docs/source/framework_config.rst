@@ -4,6 +4,6 @@
 Config
 ======
 
-.. literalinclude:: /../../example.config.py
+.. literalinclude:: /../../config.py
 
     
