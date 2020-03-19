@@ -22,3 +22,6 @@ tweepy == 3.8.0
 
 # fjbot/cogs/voice.py: 6
 youtube_dl == 2020.3.8
+
+# docs
+m2r == 0.2.1
