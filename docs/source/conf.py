@@ -39,6 +39,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.doctest",
     'sphinx_rtd_theme',
+    'sphinx.ext.githubpages',
     'm2r',
 ]
 
