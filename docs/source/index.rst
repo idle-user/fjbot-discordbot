@@ -38,6 +38,7 @@ Welcome to FJBot - Discord Bot's Documentation!
     :maxdepth: 2
     :caption: Misc
 
+    misc_readme
     misc_license
     misc_aboutme
 
