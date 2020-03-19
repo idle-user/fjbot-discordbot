@@ -1,7 +1,7 @@
 # FJBot-DiscordBot
 
 [![Discord Chat](https://discordapp.com/api/guilds/361689774723170304/embed.png)](https://discord.gg/Q9mX5hQ/)
-[![status](https://img.shields.io/badge/Project%20Status-work--in--progress-green.svg)](#)
+[![status](https://img.shields.io/badge/Project%20Status-on--hold-yellow.svg)](#)
 [![Documentation](https://readthedocs.org/projects/fjbot/badge/?version=latest)](https://fjbot.readthedocs.io/en/latest/)
 [![Discordpy](https://img.shields.io/badge/discord-py-blue.svg)](https://github.com/Rapptz/discord.py)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
