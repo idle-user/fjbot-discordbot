@@ -2,6 +2,9 @@
 
 [![Discord Chat](https://discordapp.com/api/guilds/361689774723170304/embed.png)](https://discord.gg/Q9mX5hQ/)
 [![status](https://img.shields.io/badge/Project%20Status-work--in--progress-green.svg)](#)
+[![Documentation](https://readthedocs.org/projects/fjbot/badge/?version=latest)](https://fjbot.readthedocs.io/en/latest/)
+[![Discordpy](https://img.shields.io/badge/discord-py-blue.svg)](https://github.com/Rapptz/discord.py)
+[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jesus_andrade45%40yahoo%2ecom&lc=US&item_name=GitHub%20Projects&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
 
 A Discord bot with focus on wrestling events and  [Matches](https://fancyjesse.com/projects/matches).
@@ -61,7 +64,7 @@ Display current bets
 ```
 
 > many more commands available.
-> see [docs](https://fancyjesse.com/projects/fjbot/docs)
+> see the [documentation](https://fjbot.readthedocs.io/en/latest/)
 
 ##  Prerequisites (Development)
 
