@@ -95,12 +95,16 @@ python3 bot.py
 
 ## Update History
 
-2020-03-12
-* Command name changes
-* Formatting
+2020-03-19
+* Fixed prefix issue on PM
+* Updated Start and End bot.py messages
 
 <details>
     <summary>see more</summary>
+
+2020-03-12
+* Command name changes
+* Formatting
 
 2020-03-11
 * Docstring and a lot of documentation

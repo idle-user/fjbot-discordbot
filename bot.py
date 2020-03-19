@@ -35,8 +35,10 @@ def prefix(bot, ctx):
 
     :param bot: The Discord Bot.
     :param ctx: The invocation context.
-    :return: The
+    :return: The guild's command prefix.
     """
+    if not ctx.guild:
+        return config.base['default_prefix']
     guild_info = DbHelper().guild_info(ctx.guild.id)
     if not guild_info:
         logger.info('No record found for guild: {0.name}({0.id})'.format(ctx.guild))
@@ -166,7 +168,11 @@ async def on_ready():
         Stores the datetime the bot started as an attribute.
     """
     bot.start_dt = datetime.now()
-    logger.info('START bot.py `{}`'.format(bot.user.name))
+    logger.info(
+        'START bot `{0.name} - {0.id}` Discord Version: {1}'.format(
+            bot.user, discord.__version__
+        )
+    )
 
 
 @bot.command(name='load', hidden=True)
@@ -234,4 +240,4 @@ if __name__ == '__main__':
             logger.error(f'Failed to load extension `{extension}`', file=sys.stderr)
             traceback.print_exc()
     bot.run(config.discord['access_token'])
-    logger.info('END bot.py `{}`'.format(bot.user.name))
+    logger.info('END bot `{0.name} - {0.id}`'.format(bot.user.name))
