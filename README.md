@@ -1,7 +1,7 @@
 # FJBot-DiscordBot
 
 [![Discord Chat](https://discordapp.com/api/guilds/361689774723170304/embed.png)](https://discord.gg/Q9mX5hQ/)
-[![status](https://img.shields.io/badge/Project%20Status-on--hold-yellow.svg)](#)
+[![status](https://img.shields.io/badge/Project%20Status-inactive-inactive.svg)](#)
 [![Documentation](https://readthedocs.org/projects/fjbot/badge/?version=latest)](https://fjbot.readthedocs.io/en/latest/)
 [![Discordpy](https://img.shields.io/badge/discord-py-blue.svg)](https://github.com/Rapptz/discord.py)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
@@ -68,7 +68,7 @@ Display current bets
 
 ##  Prerequisites (Development)
 
-* Python 3.7
+* Python 3
 * MySQL
 * Discord Server
 
@@ -77,6 +77,11 @@ Display current bets
 Clone repository
 ```console
 git clone https://github.com/FancyJesse/fjbot.git
+```
+
+Install requirements
+```console
+pip install discord.py[voice] mysqlclient youtube_dl tweepy m2r
 ```
 
 Create config file. See [config.py](config.py)
