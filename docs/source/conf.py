@@ -42,7 +42,7 @@ extensions = [
     "sphinx.ext.doctest",
     'sphinx_rtd_theme',
     'sphinx.ext.githubpages',
-    'm2r'
+    'm2r',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

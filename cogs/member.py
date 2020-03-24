@@ -28,7 +28,7 @@ class Member(commands.Cog):
         profile. After logging in to the website, their profile has a Discord ID field that they can fill. Once the
         value is set, the account is linked.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         user = DiscordUser(ctx.author)
         msg = (
@@ -49,7 +49,7 @@ class Member(commands.Cog):
         registering the account. The user will have 15 seconds to respond with a `[Y/N]`. If `[Y]`, the account will
         attempt to register, the response is then delivered. If `[N]`, the request is cancelled.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         embed = None
         user = DiscordUser(ctx.author)
@@ -98,7 +98,7 @@ class Member(commands.Cog):
             This bypasses the website login by using a temporary token. The token expires once the link is used or
             5 minutes has passed.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         user = DiscordUser(ctx.author)
         link = user.request_login_link()
@@ -118,7 +118,7 @@ class Member(commands.Cog):
             This bypasses the login credentials by using a temporary password. The temporary password is only valid for
             resetting the account's password. It expires once the password has changed or 5 minutes has passed.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         user = DiscordUser(ctx.author)
         link = user.request_reset_password_link()
@@ -130,27 +130,16 @@ class Member(commands.Cog):
     @commands.command(name='commands', aliases=['misc', 'command-list'])
     @commands.cooldown(1, 30.0, commands.BucketType.user)
     async def misc_commands(self, ctx):
-        """Sends the list of available *dumb commands* to the user through DM.
+        """Sends a link to the list of available *dumb commands*.
 
-        .. note::
-            The content is split up into multiple messages if too large.
-
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         user = DiscordUser(ctx.author)
-        rows = user.chatroom_command_list()
-        msg = ''
-        for row in rows:
-            msg = msg + row['command'] + '\n'
-            if len(msg) > 1000:
-                msg = msg + '...'
-                embed = quickembed.info(desc='Chat Commands', user=user)
-                embed.add_field(name='\u200b', value=msg, inline=False)
-                await ctx.author.send(embed=embed)
-                msg = '...\n'
-        embed = quickembed.info(desc='Chat Commands', user=user)
-        embed.add_field(name='\u200b', value=msg, inline=False)
-        await ctx.author.send(embed=embed)
+        embed = quickembed.info(
+            desc='FJBot Command:\nhttps://fancyjesse.com/projects/fjbot/command-list',
+            user=DiscordUser(ctx.author),
+        )
+        await ctx.send(embed=embed)
 
     @commands.command()
     @commands.cooldown(1, 300.0, commands.BucketType.user)
@@ -163,7 +152,7 @@ class Member(commands.Cog):
         .. note::
             This should be used sparingly. If the Discord server has a lot of users, this may get annoying.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         :param member: The Discord user being reported.
         :param reason: The reason for reporting the Discord user.
         """
@@ -178,7 +167,7 @@ class Member(commands.Cog):
     async def joined(self, ctx, member: discord.Member = None):
         """Displays the date the user joined the Discord server.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         :param member: The Discord user to display.
         """
         member = member if member else ctx.author
@@ -192,7 +181,7 @@ class Member(commands.Cog):
     async def invite(self, ctx):
         """Sends the Discord server invite link defined in :mod:`config`.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         embed = quickembed.info(
             desc='Invite Link:\n{}\n\nInvite Bot:\n{}'.format(
@@ -206,7 +195,7 @@ class Member(commands.Cog):
     async def member_roles(self, ctx):
         """Displays the roles the requesting user currently has in the server.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         roles = '{}'.format([role.name for role in ctx.author.roles])
         embed = quickembed.info(
@@ -218,7 +207,7 @@ class Member(commands.Cog):
     async def uptime(self, ctx):
         """Display the amount of time the bot has been alive.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         embed = quickembed.info(
             desc='Uptime: {}'.format(datetime.now() - self.bot.start_dt),
@@ -234,7 +223,7 @@ class Member(commands.Cog):
          .. note::
             The original message is updated to avoid spamming the chat.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         :param start_num: The number to start countdown at. Must be 10 or below. Default is 5.
         """
         start_num = 5 if start_num > 10 else start_num
@@ -256,7 +245,7 @@ class Member(commands.Cog):
     async def flip_coin(self, ctx):
         """Performs a basic coin flip and displays the result.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         result = 'Heads' if random.getrandbits(1) else 'Tails'
         embed = quickembed.info(desc='Coin flip', user=DiscordUser(ctx.author))
@@ -267,7 +256,7 @@ class Member(commands.Cog):
     async def roll_dice(self, ctx):
         """Performs a basic dice roll and returns the result.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         """
         result = '[{}] [{}]'.format(random.randint(1, 6), random.randint(1, 6))
         embed = quickembed.info(desc='Dice roll', user=DiscordUser(ctx.author))
@@ -284,7 +273,7 @@ class Member(commands.Cog):
 
             You cannot mock non-Discord user or a bot.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         :param member: The Discord user to mock.
         """
         user = DiscordUser(ctx.author)
@@ -318,7 +307,7 @@ class Member(commands.Cog):
         .. note::
             DO NOT ATTEMPT TO SLAP THE BOT.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         :param member: The Discord user to slap.
         :param reason: The reason for the slap.
         """
@@ -354,7 +343,7 @@ class Member(commands.Cog):
     ):
         """Tickle another Discord user.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         :param member: The Discord user to tickle.
         :param reason: The reason for the tickle.
         """
@@ -392,7 +381,7 @@ class Member(commands.Cog):
     ):
         """Hug another Discord user.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         :param member: The Discord user to hug.
         :param reason: The reason for the hug.
         """
@@ -426,7 +415,7 @@ class Member(commands.Cog):
     ):
         """Punch another Discord user.
 
-        :param ctx: The invocation context. The invocation context.
+        :param ctx: The invocation context.
         :param member: The Discord user to punch.
         :param reason: The reason for the punch.
         """
