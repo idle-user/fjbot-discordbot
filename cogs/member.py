@@ -422,7 +422,7 @@ class Member(commands.Cog):
         user = DiscordUser(ctx.author)
         if not member:
             embed = quickembed.info(
-                '{} tried to hug someone, but no one was there.'.format(user.mention),
+                '{} tried to punch someone, but no one was there.'.format(user.mention),
                 user=user,
             )
         elif member.bot:
@@ -434,7 +434,7 @@ class Member(commands.Cog):
             )
         elif member == ctx.author:
             embed = quickembed.info(
-                '{} punched themself. Idiot.'.format(user.mention), user=user
+                '{} accidentally punched themself like an idiot.'.format(user.mention), user=user
             )
         else:
             embed = quickembed.info(
