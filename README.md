@@ -7,7 +7,7 @@
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jesus_andrade45%40yahoo%2ecom&lc=US&item_name=GitHub%20Projects&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
 
-A Discord bot with focus on wrestling events and  [Matches](https://fancyjesse.com/projects/matches).
+A Discord bot with focus on wrestling events and  [Matches](https://idleuser.com/projects/matches).
 
 **My Discord Server:** [WatchWrestling](https://discord.gg/Q9mX5hQ)
 
@@ -15,7 +15,7 @@ A Discord bot with focus on wrestling events and  [Matches](https://fancyjesse.c
 
 ## Introduction
 
-This Discord Bot was originally created back in 2017 to integrate [Matches](https://fancyjesse.com/projects/matches) into the server. This allows users to bet and rate matches, look up Superstar biographies, share gifs, and be alerted of upcomming wrestling events.
+This Discord Bot was originally created back in 2017 to integrate [Matches](https://idleuser.com/projects/matches) into the server. This allows users to bet and rate matches, look up Superstar biographies, share gifs, and be alerted of upcomming wrestling events.
 
 Originally, this bot ran through a single Python file. I had no idea that I would still be supporting the bot this long or even begin scaling it to include additonal features and commands. Because of the expansion of the bot, I decided to transition this Discord Bot project to use cogs. Made code management a whole lot easier.
 Now I continue support on the bot as a hobby and development experience.
@@ -76,7 +76,7 @@ Display current bets
 
 Clone repository
 ```console
-git clone https://github.com/FancyJesse/fjbot.git
+git clone https://github.com/idle-user/fjbot.git
 ```
 
 Install requirements
@@ -280,5 +280,5 @@ This project is licensed under the GNU GPLv3 License - see the [LICENSE](LICENSE
 
 ## Authors
 
-FancyJesse
+idle-user
 
