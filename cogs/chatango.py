@@ -1,4 +1,4 @@
-"""This cog allows Chatango users to interact with their `Matches <https://fancyjesse.com/projects/matches>`_ account.
+"""This cog allows Chatango users to interact with their `Matches <https://idleuser.com/projects/matches>`_ account.
 """
 import asyncio
 import logging
@@ -12,7 +12,7 @@ from discord.ext import commands
 import config
 from lib import ch
 from utils import checks
-from utils.fjclasses import ChatangoUser, Match
+from utils.fjclasses import ChatangoUser, Match, DbHelper
 
 chbot = None
 
@@ -38,7 +38,7 @@ class Chatango(commands.Cog):
             """Called on init. Required."""
             global chbot
             chbot = self
-            self.season = 3  # the current Match season
+            self.season = 4  # the current Match season
             self.buffer = []  # list of messages to relay back to Discord
             self.users = []  # the users in the chatroom(s)
             self.setNameColor('000099')
@@ -53,7 +53,9 @@ class Chatango(commands.Cog):
             :param author: The author of the message.
             :param message: The message received.
             """
-            if 'fjbot' in message.body.lower():
+
+            # log in discord channel
+            if 'fjbot' in message.body.lower() or author.name == self.name.lower():
                 msg = '[{}] {}: {}'.format(room.name, author.name, message.body)
                 self.buffer.append(msg)
             self.message_handler(author, message.body)
@@ -185,7 +187,7 @@ class Chatango(commands.Cog):
             elif cmd == '!resetpw':
                 msg = self.reset_pw(user)
             elif cmd in ['!mypoints', '!points', '!mystats', '!stats']:
-                msg = user.stats_text(season=3)
+                msg = user.stats_text(season=4)
             elif cmd == '!rate':
                 msg = self.rate_match(user, args)
             elif cmd == '!bet':
@@ -436,7 +438,7 @@ class Chatango(commands.Cog):
 
         :param ctx: The invocation context.
         """
-        ctx.send(
+        await ctx.send(
             '```Chatango User List ({})\n{}\n```'.format(len(chbot.users), chbot.users)
         )
 

@@ -37,7 +37,6 @@ class Scheduler(commands.Cog):
         await self.bot.wait_until_ready()
         now = datetime.datetime.now()
         key_flag = '%s_flag' % now.strftime('%A').lower()
-        key_time = '%s_time' % now.strftime('%A').lower()
         scheduler_list = DbHelper().chatroom_scheduler_list()
         # check if pending tasks match
         for payload in scheduler_list:
@@ -56,7 +55,7 @@ class Scheduler(commands.Cog):
 
             task_dt = datetime.datetime.combine(
                 datetime.date.today(),
-                (datetime.datetime.min + payload[key_time]).time(),
+                (datetime.datetime.min + payload['start_time']).time(),
             )
             # add new task
             if (
@@ -86,12 +85,18 @@ class Scheduler(commands.Cog):
         :param payload: The event details to deliver. See :func:`utils.fjclasses.DbHelper.chatroom_scheduler_list`.
         """
         try:
+            role_name = ''
             embed = quickembed.info(desc='Event')
             embed.add_field(name=payload['message'], value='\u200b', inline=False)
             if payload['name'] in ['RAW', 'SmackDown', 'NXT']:
                 channel = self.bot.get_channel(config.base['channel']['wwe'])
+                role_name = 'WWE-{}-Squad'.format(payload['name'])
             elif 'AEW' in payload['name']:
                 channel = self.bot.get_channel(config.base['channel']['aew'])
+                role_name = 'AEW-Squad'
+            elif 'Dev-Test' in payload['name']:
+                channel = self.bot.get_channel(config.base['channel']['bot-test'])
+                role_name = 'Admin'
             else:
                 channel = self.bot.get_channel(config.base['channel']['general'])
             logger.info(
@@ -111,7 +116,13 @@ class Scheduler(commands.Cog):
                 and payload.items()
                 == self.scheduled_payloads[payload['name']]['data'].items()
             ):
-                await channel.send('@everyone', embed=embed)
+                msg = ''
+                if role_name:
+                    role = discord.utils.get(channel.guild.roles, name=role_name)
+                    msg = '{}'.format(role.mention)
+                await channel.send(msg, embed=embed)
+                if payload['tweet']:
+                    await self.bot.tweet(payload['tweet'])
             else:
                 logger.info(
                     'Task message not sent. Payload does not match. - `{}`'.format(
@@ -135,18 +146,26 @@ class Scheduler(commands.Cog):
 
         :param ctx: The invocation context.
         """
-        user = DiscordUser(ctx.author)
-        embed = quickembed.info(desc="Today's Scheduled Alerts (PT)", user=user)
-        embed.add_field(
-            name='\u200b',
-            value='\n'.join(
-                [
-                    '{1} - **{0}**'.format(k, v['task_datetime'])
-                    for k, v in self.scheduled_payloads.items()
-                ]
-            ),
-        )
+        if self.scheduled_payloads.items():
+            user = DiscordUser(ctx.author)
+            embed = quickembed.info(desc="Today's Scheduled Alerts (PT)", user=user)
+            embed.add_field(
+                name='\u200b',
+                value='\n'.join(
+                    [
+                        '{1} - **{0}**'.format(k, v['task_datetime'])
+                        for k, v in self.scheduled_payloads.items()
+                    ]
+                ),
+            )
+        else:
+            embed = quickembed.error(desc='Nothing scheduled for today')
         await ctx.send(embed=embed)
+
+    @commands.command(name='tw', hidden=True)
+    @commands.is_owner()
+    async def tw(self, ctx, *, message: str):
+        await self.bot.tweet(message)
 
     async def showtime_schedule_task(self):
         """Retrieves the closest event from the database and creates a scheduled message to post to a channel.
@@ -178,10 +197,15 @@ class Scheduler(commands.Cog):
             )
             await asyncio.sleep(event_start_timer)
             if channel:
-                await channel.send('@everyone', embed=embed)
+                role = discord.utils.get(channel.guild.roles, name='PPV-Squad')
+                await channel.send(role.mention, embed=embed)
                 activity = discord.Activity(
                     type=discord.ActivityType.watching, name=event['name']
                 )
+                tweet_msg = '{} has begun! discuss the live event with us in our WatchWrestling Discord. #WatchWrestling #discord\n\nhttps://discord.gg/97QupPw'.format(
+                    event['name']
+                )
+                await self.bot.tweet(tweet_msg)
                 await self.bot.change_presence(activity=activity)
                 await asyncio.sleep(event_length_timer)
                 await self.bot.change_presence(activity=None)

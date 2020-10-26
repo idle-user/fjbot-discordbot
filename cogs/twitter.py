@@ -25,6 +25,7 @@ class Twitter(commands.Cog):
             config.twitter['access_token'], config.twitter['access_token_secret']
         )
         self.twitter = tweepy.API(self.auth)
+        self.bot.tweet = self.tweet_it
         logger.info('START TwitterBot `{}`'.format(self.twitter.me().screen_name))
 
         # self.bot.loop.create_task(self.superstar_birthday_task())
@@ -32,6 +33,13 @@ class Twitter(commands.Cog):
 
     def __unload(self):
         pass
+
+    @commands.is_owner()
+    async def tweet_it(self, message):
+        """ Test """
+        message = self.live_tweet(message)
+        channel = self.bot.get_channel(config.base['channel']['twitter'])
+        await channel.send(message)
 
     def latest_tweets(self, twitter_id, count=1):
         """Fetches the latest tweets from a Twitter user's timeline.
@@ -146,8 +154,9 @@ class Twitter(commands.Cog):
         :param ctx: The invocation context.
         :param message: The message for the tweet.
         """
+        message = message.replace('{invite}', config.base['invite']['guild'])
         await ctx.send('Send Tweet? [Y/N]```{}```'.format(message))
-        confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=10.0)
+        confirm = await self.bot.wait_for('message', check=checks.confirm, timeout=30.0)
         if confirm and confirm.content.upper() == 'Y':
             tweet_link = self.live_tweet(message)
             channel = self.bot.get_channel(config.base['channel']['twitter'])

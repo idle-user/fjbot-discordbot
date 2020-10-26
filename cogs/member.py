@@ -33,7 +33,7 @@ class Member(commands.Cog):
         user = DiscordUser(ctx.author)
         msg = (
             'Your discord_id is: `{}`\n'
-            'Link it to your http://matches.fancyjesse.com profile.'.format(
+            'Link it to your http://idleuser.com/projects/matches profile.'.format(
                 user.discord.id
             )
         )
@@ -60,7 +60,7 @@ class Member(commands.Cog):
         else:
             text_question = (
                 '[Y/N]\nYour Discord is not linked to an existing '
-                'Matches account (http://matches.fancyjesse.com)\n'
+                'Matches account (http://idleuser.com/projects/matches)\n'
                 'Would you like to register a new account?'
             )
             embed_question = quickembed.question(user=user, desc=text_question)
@@ -136,7 +136,7 @@ class Member(commands.Cog):
         """
         user = DiscordUser(ctx.author)
         embed = quickembed.info(
-            desc='FJBot Command:\nhttps://fancyjesse.com/projects/fjbot/command-list',
+            desc='FJBot Command:\nhttps://idleuser.com/projects/fjbot/command-list',
             user=DiscordUser(ctx.author),
         )
         await ctx.send(embed=embed)
@@ -434,7 +434,8 @@ class Member(commands.Cog):
             )
         elif member == ctx.author:
             embed = quickembed.info(
-                '{} accidentally punched themself like an idiot.'.format(user.mention), user=user
+                '{} accidentally punched themself like an idiot.'.format(user.mention),
+                user=user,
             )
         else:
             embed = quickembed.info(

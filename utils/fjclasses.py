@@ -199,7 +199,7 @@ class _User(_Base):
         self.twitter_id = row['twitter_id']
         self.access = row['access']
         self.last_login = row['last_login']
-        self.url = 'https://fancyjesse.com/projects/matches/user' '?user_id={}'.format(
+        self.url = 'https://idleuser.com/projects/matches/user' '?user_id={}'.format(
             self.id
         )
 
@@ -217,7 +217,7 @@ class _User(_Base):
         :return: The user stats for the Matches season.
         """
         return self.db.query(
-            'CALL usp_sel_user_stats_by_id(%s, %s)', (self.id, season)
+            'CALL usp_matches_sel_stats_by_id(%s, %s)', (self.id, season)
         )[0]
 
     def place_bet(self, match_id, team, bet):
@@ -229,7 +229,7 @@ class _User(_Base):
         :return: Query result with success or failure message.
         """
         return self.db.query(
-            'CALL usp_ins_user_bet(%s, %s, %s, %s)', (self.id, match_id, team, bet)
+            'CALL usp_matches_ins_bet(%s, %s, %s, %s)', (self.id, match_id, team, bet)
         )[0]
 
     def rate_match(self, match_id, rating):
@@ -240,7 +240,7 @@ class _User(_Base):
         :return: Query result with success or failure message.
         """
         return self.db.query(
-            'CALL usp_ins_user_match_rating(%s, %s, %s)', (self.id, match_id, rating)
+            'CALL usp_matches_ins_rating(%s, %s, %s)', (self.id, match_id, rating)
         )[0]
 
     def current_bets(self):
@@ -248,7 +248,7 @@ class _User(_Base):
 
         :return: Query result of currently placed bets. Error message if none.
         """
-        return self.db.query('CALL usp_sel_user_current_bets(%s)', (self.id,))
+        return self.db.query('CALL usp_matches_sel_current_bets(%s)', (self.id,))
 
     def validate_bet(self, match_id, team, bet):
         """Checks to see if user is able to place the bet through a stored procedure.
@@ -259,7 +259,7 @@ class _User(_Base):
         :return: Query result with success or failure message.
         """
         return self.db.query(
-            'CALL usp_sel_user_bet_validate(%s, %s, %s, %s)',
+            'CALL usp_matches_sel_validate_bet(%s, %s, %s, %s)',
             (self.id, match_id, team, bet),
         )[0]
 
@@ -276,10 +276,10 @@ class _User(_Base):
         """
         token = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
         self.db.query(
-            'CALL usp_upd_user_login_token(%s, %s, %s);',
+            'CALL usp_user_upd_login_token(%s, %s, %s);',
             (self.id, self.username, token),
         )
-        link = 'https://fancyjesse.com/projects/matches?uid={}&token={}'.format(
+        link = 'https://idleuser.com?uid={}&token={}&redirect_to=/projects/matches'.format(
             self.id, token
         )
         return link
@@ -287,9 +287,9 @@ class _User(_Base):
     def request_reset_password_link(self):
         """Creates hyperlink to reset the user's password.
 
-        Once called a temporary password is set for the user to bypass their original password.This is required for
+        Once called a temporary password is set for the user to bypass their original password. This is required for
         users that have no yet set up a password for their account; users that registered through the bot and not the
-        website.
+        website. A login link is used to automatically sign-in users.
 
         .. important::
             Do not post this link in a public chat. It must be DMed to the user requesting it only.
@@ -297,17 +297,16 @@ class _User(_Base):
 
         :return: The hyperlink to reset the user's password for the website.
         """
+        login_link = self.request_login_link()
+        login_link = login_link.replace('redirect_to=/projects/matches', '')
         temp_secret = ''.join(
             random.choices(string.ascii_letters + string.digits, k=10)
         )
         self.db.query(
-            'CALL usp_upd_user_temp_secret(%s, %s, %s);',
+            'CALL usp_user_upd_temp_secret(%s, %s, %s);',
             (self.id, self.username, temp_secret),
         )
-        link = (
-            'https://fancyjesse.com/account?temp_pw={}&user_id={}'
-            '&username={}&project=matches'.format(temp_secret, self.id, self.username)
-        )
+        link = login_link + '&redirect_to=/account.php%3Ftemp_pw={0}'.format(temp_secret)
         return link
 
     def royalrumble_info(self):
@@ -321,36 +320,6 @@ class _User(_Base):
 
         """
         raise NotImplementedError
-
-    def fjbucks_wallet(self):
-        """
-
-        :return: The user's FJBucks wallet info.
-        """
-        return self.db.query('CALL usp_sel_user_fjbucks_wallet_by_id(%s)', (self.id,))[
-            0
-        ]
-
-    def fjbucks_transaction(self, amount, note):
-        """Calls stored procedure to create a FJBucks transaction.
-
-        :param amount: The amount of FJBucks for the transaction.
-        :param note: A memo for the transaction.
-        :return: Query result with success or failure message.
-        """
-        return self.db.query(
-            'CALL usp_ins_fjbucks_transaction(%s, %s, %s)', (self.id, amount, note)
-        )[0]
-
-    def fjbucks_check(self, amount):
-        """Checks whether the FJBucks transaction is valid to make.
-
-        :param amount: The amount of FJBucks for the transaction.
-        :return: Query result with success or failure message.
-        """
-        return self.db.query(
-            'CALL usp_sel_fjbucks_transaction_check(%s, %s)', (self.id, amount)
-        )[0]
 
 
 class DbHelper(_Database):
@@ -367,7 +336,7 @@ class DbHelper(_Database):
         """
         return [
             _Base(id=row['id'], name=row['username'])
-            for row in self.db.query('CALL usp_sel_user_by_name(%s)', (name,))
+            for row in self.db.query('CALL usp_user_sel_by_username(%s)', (name,))
         ]
 
     def search_superstar_by_name(self, name):
@@ -378,7 +347,7 @@ class DbHelper(_Database):
         """
         return [
             _Base(id=row['id'], name=row['name'])
-            for row in self.db.query('CALL usp_sel_superstar_by_name(%s)', (name,))
+            for row in self.db.query('CALL usp_matches_sel_superstar_by_name(%s)', (name,))
         ]
 
     def search_match_by_id(self, id):
@@ -390,7 +359,7 @@ class DbHelper(_Database):
         return [
             _Base(id=row['id'])
             for row in self.db.query(
-                'SELECT id FROM `match` WHERE match_type_id<>0 AND id=%s', (id,)
+                'SELECT id FROM matches_match WHERE match_type_id<>0 AND id=%s', (id,)
             )
         ]
 
@@ -402,7 +371,7 @@ class DbHelper(_Database):
         return [
             _Base(id=row['id'])
             for row in self.db.query(
-                'SELECT id FROM `match` WHERE match_type_id<>0 AND bet_open=1'
+                'SELECT id FROM matches_match WHERE match_type_id<>0 AND bet_open=1'
             )
         ]
 
@@ -416,8 +385,8 @@ class DbHelper(_Database):
             _Base(id=row['match_id'])
             for row in self.db.query(
                 'SELECT match_id '
-                'FROM match_calculation '
-                'JOIN `match` ON id=match_id '
+                'FROM matches_match_calculation '
+                'JOIN matches_match ON id=match_id '
                 'WHERE bet_open=1 AND match_type_id<>0 AND contestants LIKE %s',
                 ('%{}%'.format(name),),
             )
@@ -429,7 +398,7 @@ class DbHelper(_Database):
         :return: A list of :class:'utils.fjclasses._Base'.
         """
         return [
-            _Base(id=row['id']) for row in self.db.query('CALL usp_sel_match_current()')
+            _Base(id=row['id']) for row in self.db.query('CALL usp_matches_sel_current_match()')
         ]
 
     def search_match_by_recent_completed(self):
@@ -439,7 +408,7 @@ class DbHelper(_Database):
         """
         return [
             _Base(id=row['id'])
-            for row in self.db.query('CALL usp_sel_match_recent_completed()')
+            for row in self.db.query('CALL usp_matches_sel_match_recent_completed()')
         ]
 
     def leaderboard(self, season):
@@ -448,7 +417,7 @@ class DbHelper(_Database):
         :param season: The season id.
         :return: Query result of User stats ordered by total points for the season.
         """
-        return self.db.query('CALL usp_sel_user_leaderboard(%s)', (season,))
+        return self.db.query('CALL usp_matches_sel_leaderboard(%s)', (season,))
 
     def guild_info(self, guild_id):
         """Fetches Discord guild information by id.
@@ -472,7 +441,7 @@ class DbHelper(_Database):
         :return: TODO
         """
         return self.db.query(
-            'CALL usp_ins_guild_info(%s, %s, %s, %s)',
+            'CALL usp_guild_ins_info(%s, %s, %s, %s)',
             (guild.id, guild.name, guild.owner_id, prefix),
         )
 
@@ -482,7 +451,7 @@ class DbHelper(_Database):
         :param command: The command to fetch the response for.
         :return: The query result if found, `False` otherwise.
         """
-        rows = self.db.query('CALL usp_sel_chatroom_command(%s)', (command,))
+        rows = self.db.query('CALL usp_chatroom_sel_command(%s)', (command,))
         if rows:
             return rows[0]
         return False
@@ -516,14 +485,14 @@ class DbHelper(_Database):
         :param ppv_check: The PPV flag check. Default is 0.
         :return: The query result of upcoming events.
         """
-        return self.db.query('CALL usp_sel_event_future(%s)', (ppv_check,))
+        return self.db.query('CALL usp_matches_sel_future_event(%s)', (ppv_check,))
 
     def superstar_birthday_upcoming(self):
         """Fetches Superstar info who's birthday is coming up.
 
         :return: The query result of Superstars.
         """
-        return self.db.query('CALL usp_sel_superstar_birthday_upcoming()')
+        return self.db.query('CALL usp_matches_sel_superstar_birthday_upcoming()')
 
     def chatroom_scheduler_list(self):
         """Fetches list of weekly alert scheduler.
@@ -583,7 +552,7 @@ class DiscordUser(_User, DbHelper):
         :return: Query result with success or failure message.
         """
         return self.db.query(
-            'CALL usp_ins_user_from_discord(%s, %s)', (self.discord, self.discord.id)
+            'CALL usp_user_ins_from_discord(%s, %s)', (self.discord, self.discord.id)
         )[0]
 
     def stats_embed(self, season):
@@ -691,7 +660,7 @@ class ChatangoUser(_User, DbHelper):
 
         :return: Query result with success or failure message.
         """
-        return self.db.query('CALL usp_ins_user_from_chatango(%s)', (self.name,))[0]
+        return self.db.query('CALL usp_user_ins_from_chatango(%s)', (self.name,))[0]
 
     def stats_text(self, season):
         """Formats the user's stats for the season as plain text.
@@ -751,7 +720,7 @@ class Superstar(_Base, DbHelper):
          .. note::
             If no results are found with id, no attributes are set.
          """
-        rows = self.query('CALL usp_sel_superstar_by_id(%s)', (self.id,))
+        rows = self.query('CALL usp_matches_sel_superstar_by_id(%s)', (self.id,))
         if rows:
             self.fill_info(rows[0])
 
@@ -784,7 +753,7 @@ class Superstar(_Base, DbHelper):
         embed = discord.Embed(color=quickembed.color['blue'])
         embed.set_author(
             name=self.name,
-            url='https://fancyjesse.com/projects/matches/superstar?superstar_id={}'.format(
+            url='https://idleuser.com/projects/matches/superstar?superstar_id={}'.format(
                 self.id
             ),
         )
@@ -916,7 +885,7 @@ class Match(_Base, DbHelper):
         self.star_rating = ''.join(
             ['★' if self.user_rating_avg >= i else '☆' for i in range(1, 6)]
         )
-        self.url = 'https://fancyjesse.com/projects/matches/matches?match_id={}'.format(
+        self.url = 'https://idleuser.com/projects/matches/matches?match_id={}'.format(
             self.id
         )
         self.teams = {}
@@ -927,10 +896,10 @@ class Match(_Base, DbHelper):
         .. note::
             If no results are found with id, no attributes are set.
         """
-        rows = self.query('CALL usp_sel_match_by_id(%s)', (self.id,))
+        rows = self.query('CALL usp_matches_sel_match_by_id(%s)', (self.id,))
         if rows:
             self.fill_info(rows[0])
-            team_rows = self.query('CALL usp_sel_match_teams(%s)', (self.id,))
+            team_rows = self.query('CALL usp_matches_sel_match_teams(%s)', (self.id,))
             for team_row in team_rows:
                 self.teams.update({team_row['team']: team_row})
 

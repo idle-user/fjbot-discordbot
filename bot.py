@@ -50,6 +50,7 @@ def prefix(bot, ctx):
 bot = discord.ext.commands.Bot(
     command_prefix=prefix, description=config.base['description'],
 )
+bot.remove_command("help")
 
 
 def log(content=None, embed=None):
@@ -101,13 +102,8 @@ async def on_command_error(ctx, error):
     """
     msg = None
     if isinstance(error, commands.CommandNotFound):
-        logger.error(
-            'CommandNotFound: {0} - '
-            '{1.guild.name}({1.guild.id}) - '
-            '{1.author}'.format(error, ctx)
-        )
         return
-    if isinstance(error, commands.CommandOnCooldown):
+    elif isinstance(error, commands.CommandOnCooldown):
         msg = 'Slow down! Try again in {:.1f} seconds.'.format(error.retry_after)
     elif isinstance(error, GuildNotOriginError):
         logger.error(
@@ -119,7 +115,7 @@ async def on_command_error(ctx, error):
     elif isinstance(error, UserNotRegisteredError):
         msg = (
             'Your Discord is not linked to an existing Matches account.\n'
-            'Use `!register` or visit http://matches.fancyjesse.com to link '
+            'Use `!register` or visit http://idleuser.com/projects/matches to link '
             'to your existing account.'
         )
     elif isinstance(error, commands.CommandError):
@@ -138,6 +134,7 @@ async def on_command_error(ctx, error):
         raise error
 
 
+'''
 @bot.event
 async def on_message(ctx):
     """Called whenever a message is sent to a server the bot is watching.
@@ -159,6 +156,7 @@ async def on_message(ctx):
         tokens = ctx.content.split(' ')
         ctx.content = '{} {}'.format(tokens[0].lower(), ' '.join(tokens[1:]))
         await bot.process_commands(ctx)
+'''
 
 
 @bot.event

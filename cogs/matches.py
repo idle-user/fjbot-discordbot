@@ -1,4 +1,4 @@
-"""This cog allows users to interact with their `Matches <https://fancyjesse.com/projects/matches>`_ account."""
+"""This cog allows users to interact with their `Matches <https://idleuser.com/projects/matches>`_ account."""
 import logging
 
 import discord
@@ -125,7 +125,7 @@ class Matches(commands.Cog):
         embed = discord.Embed(description='Season 1', color=0x0080FF)
         embed.set_author(
             name='Leaderboard',
-            url='https://fancyjesse.com/projects/matches/leaderboard?season_id=1',
+            url='https://idleuser.com/projects/matches/leaderboard?season_id=1',
             icon_url=self.bot.user.avatar_url,
         )
         lb = [
@@ -148,7 +148,7 @@ class Matches(commands.Cog):
         embed = discord.Embed(description='Season 2', color=0x0080FF)
         embed.set_author(
             name='Leaderboard',
-            url='https://fancyjesse.com/projects/matches/leaderboard?season_id=2',
+            url='https://idleuser.com/projects/matches/leaderboard?season_id=2',
             icon_url=self.bot.user.avatar_url,
         )
         lb = [
@@ -171,7 +171,7 @@ class Matches(commands.Cog):
         embed = discord.Embed(description='Season 3', color=0x0080FF)
         embed.set_author(
             name='Leaderboard',
-            url='https://fancyjesse.com/projects/matches/leaderboard?season_id=3',
+            url='https://idleuser.com/projects/matches/leaderboard?season_id=3',
             icon_url=self.bot.user.avatar_url,
         )
         lb = [
@@ -494,7 +494,6 @@ class Matches(commands.Cog):
 
 def setup(bot):
     """Required for cogs.
-
     :param bot: The Discord bot.
     """
     bot.add_cog(Matches(bot))
