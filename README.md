@@ -1,6 +1,6 @@
 # FJBot-DiscordBot
 
-[![Discord Chat](https://discordapp.com/api/guilds/361689774723170304/embed.png)](https://discord.gg/Q9mX5hQ/)
+[![Discord Chat](https://discordapp.com/api/guilds/361689774723170304/embed.png)](https://discord.gg/U5wDzWP8yD)
 [![status](https://img.shields.io/badge/Project%20Status-inactive-inactive.svg)](#)
 [![Documentation](https://readthedocs.org/projects/fjbot/badge/?version=latest)](https://fjbot.readthedocs.io/en/latest/)
 [![Discordpy](https://img.shields.io/badge/discord-py-blue.svg)](https://github.com/Rapptz/discord.py)
@@ -9,9 +9,8 @@
 
 A Discord bot with focus on wrestling events and  [Matches](https://idleuser.com/projects/matches).
 
-**My Discord Server:** [WatchWrestling](https://discord.gg/Q9mX5hQ)
+**My Discord Server:** [WatchWrestling](https://discord.gg/U5wDzWP8yD)
 
-**Invite FJBot to your Discord Server:** [FJBot](https://discordapp.com/oauth2/authorize?&client_id=364938585675137035&scope=bot&permissions=199680)
 
 ## Introduction
 
