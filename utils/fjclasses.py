@@ -274,14 +274,12 @@ class _User(_Base):
 
         :return: The hyperlink to auto-login a user to the website.
         """
-        token = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
+        login_token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
         self.db.query(
-            'CALL usp_user_upd_login_token(%s, %s, %s);',
-            (self.id, self.username, token),
+            'UPDATE user SET login_token=%s, login_token_exp=DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id=%s',
+            (login_token, self.id),
         )
-        link = 'https://idleuser.com?uid={}&token={}&redirect_to=/projects/matches'.format(
-            self.id, token
-        )
+        link = 'https://idleuser.com?login_token={}&redirect_to=/projects/matches'.format(login_token)
         return link
 
     def request_reset_password_link(self):
@@ -297,16 +295,14 @@ class _User(_Base):
 
         :return: The hyperlink to reset the user's password for the website.
         """
-        login_link = self.request_login_link()
-        login_link = login_link.replace('redirect_to=/projects/matches', '')
-        temp_secret = ''.join(
-            random.choices(string.ascii_letters + string.digits, k=10)
+        reset_token = ''.join(
+            random.choices(string.ascii_letters + string.digits, k=32)
         )
         self.db.query(
-            'CALL usp_user_upd_temp_secret(%s, %s, %s);',
-            (self.id, self.username, temp_secret),
+            'UPDATE user SET temp_secret=%s, temp_secret_exp=DATE_ADD(NOW(), INTERVAL 30 MINUTE) WHERE id=%s;',
+            (reset_token, self.id),
         )
-        link = login_link + '&redirect_to=/account.php%3Ftemp_pw={0}'.format(temp_secret)
+        link = 'https://idleuser.com/reset-password?reset_token={0}'.format(reset_token)
         return link
 
     def royalrumble_info(self):

@@ -178,13 +178,14 @@ class Chatango(commands.Cog):
                 msg = (
                     '!discord - Discord invite link | '
                     '!login - Login link | '
-                    '!resetpw - Change password | '
+                    '!reset - Reset password | '
+                    '!reset-password - Reset password | '
                     '!rate - Rate the current match | '
                     '!stats - View your stats | '
                     '!bet - Bet points on a current Match | '
                     '!rumble - Get your entry number for the Royal Rumble (seasonal)'
                 )
-            elif cmd == '!resetpw':
+            elif cmd == '!reset' or cmd=='!reset-password':
                 msg = self.reset_pw(user)
             elif cmd in ['!mypoints', '!points', '!mystats', '!stats']:
                 msg = user.stats_text(season=4)

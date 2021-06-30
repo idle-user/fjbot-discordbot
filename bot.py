@@ -48,7 +48,9 @@ def prefix(bot, ctx):
 
 
 bot = discord.ext.commands.Bot(
-    command_prefix=prefix, description=config.base['description'],
+    command_prefix=prefix,
+    description=config.base['description'],
+    intents=discord.Intents.all()
 )
 bot.remove_command("help")
 

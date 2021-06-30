@@ -19,6 +19,7 @@ class Scheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.scheduled_payloads = {}
+        self.check_registered_users.start()
         self.check_scheduler.start()
         self.bot.loop.create_task(self.showtime_schedule_task())
 
@@ -176,7 +177,11 @@ class Scheduler(commands.Cog):
         """
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
-            event = DbHelper().future_events()[0]
+            event_list = DbHelper().future_events()
+            if not event_list:
+                await asyncio.sleep(60)
+                continue
+            event = event_list[0]
             dt = datetime.datetime.now()
             event_start_timer = (event['date_time'] - dt).total_seconds()
             embed = quickembed.info(desc='Event')
@@ -187,6 +192,7 @@ class Scheduler(commands.Cog):
             if event['ppv']:
                 channel = self.bot.get_channel(config.base['channel']['ppv'])
             else:
+                await asyncio.sleep(60)
                 continue
             logger.info(
                 'showtime_schedule_task: channel:`{}` events:`{}` sleep until:`{}`'.format(
@@ -202,7 +208,7 @@ class Scheduler(commands.Cog):
                 activity = discord.Activity(
                     type=discord.ActivityType.watching, name=event['name']
                 )
-                tweet_msg = '{} has begun! discuss the live event with us in our WatchWrestling Discord. #WatchWrestling #discord\n\nhttps://discord.gg/97QupPw'.format(
+                tweet_msg = '{} has begun! discuss the live event with us in our WatchWrestling Discord. #WatchWrestling #discord\n\nhttps://discord.gg/U5wDzWP8yD'.format(
                     event['name']
                 )
                 await self.bot.tweet(tweet_msg)
@@ -210,6 +216,24 @@ class Scheduler(commands.Cog):
                 await asyncio.sleep(event_length_timer)
                 await self.bot.change_presence(activity=None)
         logger.info('END showtime_schedule_task')
+
+
+    @tasks.loop(minutes=5.0)
+    async def check_registered_users(self):
+        await self.bot.wait_until_ready()
+        guild = self.bot.get_guild(config.base['guild_id'])
+        role = guild.get_role(753640365612990546)
+        members = guild.members
+        for member in guild.members:
+            user = DiscordUser(member)
+            is_registered = user.is_registered()
+            has_role = role in member.roles
+            if is_registered and not has_role:
+                await member.add_roles(role)
+                logger.info('Added @registered to: {}'.format(user.name))
+            elif not is_registered and has_role:
+                await member.remove_roles(role)
+                logger.info('Removed @registered from: {}'.format(user.name))
 
 
 def setup(bot):
